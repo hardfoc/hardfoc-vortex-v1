@@ -33,7 +33,7 @@ jobs:
    strategy:
      fail-fast: false
      matrix:
-       idf_version:  ${{ fromJson(env.ESP_IDF_VERSIONS) }}
+       idf_version: [v5.2.1, release-v5.3]
        build_type:   [release, debug]
 
    steps:
