@@ -34,7 +34,7 @@ jobs:
      fail-fast: false
      matrix:
        idf_version: [v5.2.1, release-v5.3]
-       build_type:   [release, debug]
+       build_type: [Release, Debug]
 
    steps:
      - uses: actions/checkout@v4
@@ -61,8 +61,9 @@ jobs:
          path:             ${{ env.BUILD_PATH }}
          command: |
            idf.py -DIDF_TARGET=${{ env.IDF_TARGET }} \
-                  -DCMAKE_BUILD_TYPE=${{ matrix.build_type | title }} \
+                  -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
                   build
+
 
        # action wraps the `espressif/idf` Docker image, saving ~5 min install time 
 
