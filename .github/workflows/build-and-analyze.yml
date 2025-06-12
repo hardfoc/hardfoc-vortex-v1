@@ -84,13 +84,6 @@ jobs:
            build/*.map
            build/size.*
 
-     # ---------- optional comment size delta on PR ----------
-     - name: Comment size Δ
-       if: github.event_name == 'pull_request'
-       uses: jakejarvis/size-report-action@v2
-       with:
-         json_path: build/size.json
-
 ########################################################################
 # 2) STATIC ANALYSIS  (cppcheck + clang‑tidy with PR annotations)
 ########################################################################
@@ -147,4 +140,4 @@ jobs:
    runs-on: ubuntu-latest
    steps:
      - uses: actions/checkout@v4
-     - uses: rhysd/actionlint@v1
+     - uses: rhysd/actionlint@v1.6.25
