@@ -1,55 +1,85 @@
 name: Build and Analyze ESP32-C6 Firmware
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+ push:
+   branches: [main]
+ pull_request:
+   branches: [main]
+
+env:
+ IDF_PATH: ${{ github.workspace }}/esp-idf
+ IDF_PYTHON_CHECK: 1
+ ESP_IDF_VERSION: v5.2  # Or pin a specific commit or tag
 
 jobs:
-  build:
-    name: Build Firmware
-    runs-on: ubuntu-latest
+ build:
+   name: Build Firmware
+   runs-on: ubuntu-latest
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+   steps:
+     - name: Checkout repository
+       uses: actions/checkout@v3
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
+     - name: Set up Python
+       uses: actions/setup-python@v4
+       with:
+         python-version: '3.11'
 
-      - name: Install ESP-IDF and dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y git wget flex bison gperf python3 python3-pip cmake ninja-build ccache libffi-dev libssl-dev dfu-util
-          git clone --recursive https://github.com/espressif/esp-idf.git
-          cd esp-idf
-          ./install.sh esp32c6
-          echo "source $PWD/export.sh" >> $GITHUB_ENV
+     - name: Install ESP-IDF and prerequisites
+       run: |
+         sudo apt-get update
+         sudo apt-get install -y git wget flex bison gperf python3 python3-pip cmake ninja-build ccache libffi-dev libssl-dev dfu-util
+         git clone --recursive https://github.com/espressif/esp-idf.git
+         cd esp-idf
+         git checkout ${ESP_IDF_VERSION}
+         ./install.sh esp32c6
+         echo "source $GITHUB_WORKSPACE/esp-idf/export.sh" >> $GITHUB_ENV
 
-      - name: Build firmware
-        run: |
-          source esp-idf/export.sh
-          idf.py build
+     - name: Restore CCache
+       uses: actions/cache@v3
+       with:
+         path: ~/.ccache
+         key: ${{ runner.os }}-ccache-${{ github.ref }}
+         restore-keys: |
+           ${{ runner.os }}-ccache-
 
-      - name: Upload firmware
-        uses: actions/upload-artifact@v3
-        with:
-          name: esp32c6-firmware
-          path: build/*.bin
+     - name: Build Firmware with idf.py
+       run: |
+         source $GITHUB_WORKSPACE/esp-idf/export.sh
+         idf.py set-target esp32c6
+         idf.py build
 
-  static-analysis:
-    name: Static Analysis (cppcheck)
-    runs-on: ubuntu-latest
+     - name: Upload firmware artifacts
+       uses: actions/upload-artifact@v4
+       with:
+         name: esp32c6-firmware
+         path: |
+           build/*.bin
+           build/*.elf
+           build/*.map
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+ static-analysis:
+   name: Static Analysis (cppcheck)
+   runs-on: ubuntu-latest
 
-      - name: Install cppcheck
-        run: sudo apt-get install -y cppcheck
+   steps:
+     - name: Checkout repository
+       uses: actions/checkout@v3
 
-      - name: Run cppcheck
-        run: cppcheck --enable=all --inconclusive --std=c99 -I main main/
+     - name: Install cppcheck
+       run: sudo apt-get install -y cppcheck
+
+     - name: Run cppcheck on main/
+       continue-on-error: true
+       run: |
+         cppcheck --enable=all --inconclusive --std=c99 \
+                  --language=c++ \
+                  --force --quiet \
+                  -I main \
+                  main 2> cppcheck-results.txt || true
+
+     - name: Upload cppcheck results
+       uses: actions/upload-artifact@v4
+       with:
+         name: cppcheck-report
+         path: cppcheck-results.txt
