@@ -60,9 +60,10 @@ jobs:
          target:           ${{ env.IDF_TARGET }}
          path:             ${{ env.BUILD_PATH }}
          command: |
-           idf.py ${{ matrix.build_type == 'release' && '--release' || '' }} \
-                  -DIDF_TARGET=${{ env.IDF_TARGET }} \
+           idf.py -DIDF_TARGET=${{ env.IDF_TARGET }} \
+                  -DCMAKE_BUILD_TYPE=${{ matrix.build_type | title }} \
                   build
+
        # action wraps the `espressif/idf` Docker image, saving ~5 min install time 
 
      # ---------- binary‑size report (human + JSON) ----------
