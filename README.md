@@ -1,8 +1,6 @@
-# Create the README.md content
-readme_content = """
 # 🚀 Welcome to **HardFOC** – Hardware-Accelerated Field Oriented Control
 
-**HardFOC** is a high-performance, hardware-centric Field Oriented Control (FOC) framework designed for embedded systems. Unlike software-only solutions, HardFOC leverages hardware peripherals (PWM, ADC, timers, DMA, etc.) to achieve ultra-efficient, real-time motor control with minimal CPU overhead.
+**HardFOC** is a high-performance, hardware-centric Field Oriented Control (FOC) framework designed for embedded systems. Unlike software-only solutions, HardFOC leverages hardware peripherals to achieve ultra-efficient, real-time motor control with minimal CPU overhead.
 
 > 💡 **HardFOC** stands for **Hardware-based FOC**, not because it's hard — but because it's fast, portable, and built for real-world embedded applications.
 
