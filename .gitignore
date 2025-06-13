@@ -36,3 +36,5 @@
 
 # CMake files
 CMakeCache.txt
+
+dependencies.lock
