@@ -1,5 +1,0 @@
-dependencies:
-  idf:
-    source:
-      type: idf
-    version: 5.5.0
