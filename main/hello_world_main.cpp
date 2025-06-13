@@ -8,11 +8,11 @@
 #include "esp_flash.h"
 #include "esp_system.h"
 
-#include "ws2812_cpp.hpp" // Include the WS2812 strip header
-#include "ws2812_effects.hpp" // Include the WS2812 animator header
-#include "../HAL/PinCfg/gpio_config_esp32c6.hpp" // Include the GPIO configuration header
+#include "ws2812_cpp.hpp"              // WS2812 strip wrapper
+#include "ws2812_effects.hpp"          // Basic LED animation helpers
+#include "hf_gpio_config.hpp"          // Board pin configuration
 
-WS2812Strip strip(WS2812_LED_PIN, RMT_CHANNEL_0, 30, LedType::RGB); // Use WS2812_LED_PIN from gpio_config_esp32c6.hpp
+WS2812Strip strip(WS2812_LED_PIN, RMT_CHANNEL_0, 30, LedType::RGB); // LED pin from hf_gpio_config.hpp
 WS2812Animator anim(strip);
 
 void printChipInfo(void)
