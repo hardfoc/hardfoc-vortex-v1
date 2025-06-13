@@ -2,12 +2,13 @@
 # CMakeLists in this exact order for cmake to work correctly
 cmake_minimum_required(VERSION 3.16)
 
+# Tell ESP-IDF to treat hf-hal as an extra component
+set(EXTRA_COMPONENT_DIRS ${CMAKE_CURRENT_LIST_DIR}/hf-hal)
+
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 
-# Include hf-hal component
-add_subdirectory(hf-hal)
-
-# "Trim" the build. Include the minimal set of components, main, and anything it depends on.
+# "Trim" the build. Include the minimal set of components, main, and anything it
+# depends on.
 idf_build_set_property(MINIMAL_BUILD ON)
-project(HardFOC)
 
+project(HardFOC)
