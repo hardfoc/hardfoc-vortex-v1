@@ -3,7 +3,11 @@
 cmake_minimum_required(VERSION 3.16)
 
 # Tell ESP-IDF to treat hf-hal as an extra component
-set(EXTRA_COMPONENT_DIRS ${CMAKE_CURRENT_LIST_DIR}/hf-hal)
+set(EXTRA_COMPONENT_DIRS
+    ${CMAKE_CURRENT_LIST_DIR}/hf-hal
+    ${CMAKE_CURRENT_LIST_DIR}/hf-hal/utils-and-drivers/hf-core-drivers/external
+    ${CMAKE_CURRENT_LIST_DIR}/hf-hal/utils-and-drivers/hf-core-drivers/external/hf-ws2812-rmt-driver
+)
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 
