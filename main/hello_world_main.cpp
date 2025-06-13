@@ -10,7 +10,7 @@
 
 #include "ws2812_cpp.hpp" // Include the WS2812 strip header
 #include "ws2812_effects.hpp" // Include the WS2812 animator header
-#include "../HAL/PinCfg/gpio_config_esp32c6.hpp" // Include the GPIO configuration header
+#include "hf_gpio_config.hpp" // Include the GPIO configuration header
 
 WS2812Strip strip(WS2812_LED_PIN, RMT_CHANNEL_0, 30, LedType::RGB); // Use WS2812_LED_PIN from gpio_config_esp32c6.hpp
 WS2812Animator anim(strip);
