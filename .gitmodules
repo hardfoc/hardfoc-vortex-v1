@@ -1,0 +1,3 @@
+[submodule "hf-hal"]
+	path = hf-hal
+	url = https://github.com/hardfoc/hf-hal.git
