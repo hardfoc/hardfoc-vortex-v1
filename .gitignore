@@ -38,3 +38,6 @@
 CMakeCache.txt
 
 dependencies.lock
+*/build/*
+# Build directories
+build/
