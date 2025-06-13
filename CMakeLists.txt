@@ -2,11 +2,6 @@
 # CMakeLists in this exact order for cmake to work correctly
 cmake_minimum_required(VERSION 3.16)
 
-set(EXTRA_COMPONENT_DIRS
-    "${CMAKE_CURRENT_SOURCE_DIR}/components"
-    "${CMAKE_CURRENT_SOURCE_DIR}/hf-hal"
-)
-
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 
 # "Trim" the build. Include the minimal set of components, main, and anything it depends on.
