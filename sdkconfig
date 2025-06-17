@@ -746,6 +746,14 @@ CONFIG_EFUSE_MAX_BLK_LEN=256
 # end of eFuse Bit Manager
 
 #
+# ADC and ADC Calibration
+#
+# CONFIG_ADC_ONESHOT_CTRL_FUNC_IN_IRAM is not set
+# CONFIG_ADC_CONTINUOUS_ISR_IRAM_SAFE is not set
+# CONFIG_ADC_ENABLE_DEBUG_LOG is not set
+# end of ADC and ADC Calibration
+
+#
 # Common ESP-related
 #
 CONFIG_ESP_ERR_TO_NAME_LOOKUP=y
@@ -1392,6 +1400,14 @@ CONFIG_LIBC_TIME_SYSCALL_USE_RTC_HRT=y
 # CONFIG_LIBC_TIME_SYSCALL_USE_HRT is not set
 # CONFIG_LIBC_TIME_SYSCALL_USE_NONE is not set
 # end of LibC
+
+#
+# NVS
+#
+# CONFIG_NVS_ENCRYPTION is not set
+# CONFIG_NVS_ASSERT_ERROR_CHECK is not set
+# CONFIG_NVS_LEGACY_DUP_KEYS_COMPATIBILITY is not set
+# end of NVS
 
 #
 # PThreads
