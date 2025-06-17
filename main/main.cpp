@@ -12,7 +12,7 @@
 #include "ws2812_effects.hpp" // Include the WS2812 animator header
 #include "hf_gpio_config.hpp" // Include the GPIO configuration header
 
-WS2812Strip strip(WS2812_LED_PIN, RMT_CHANNEL_0, 30, LedType::RGB); // Use WS2812_LED_PIN from gpio_config_esp32c6.hpp
+WS2812Strip strip(WS2812_LED_PIN, 0, 30, LedType::RGB); // Use channel 0 instead of RMT_CHANNEL_0
 WS2812Animator anim(strip);
 
 void printChipInfo(void)
@@ -51,10 +51,9 @@ void app_main(void)
     strip.begin();
     // Reduce brightness for a smoother effect
     strip.setBrightness(64);
-    // Use a rainbow cycle animation to showcase the LEDs
-    anim.setEffect(WS2812Animator::Effect::RainbowCycle);
-    // Run the animation a bit faster than the default
-    anim.setSpeed(10);
+    // Use a rainbow animation to showcase the LEDs
+    anim.setEffect(WS2812Animator::Effect::Rainbow);
+    // Animation speed is controlled by tick() frequency, no setSpeed method needed
 
     while (true) {
         anim.tick();
