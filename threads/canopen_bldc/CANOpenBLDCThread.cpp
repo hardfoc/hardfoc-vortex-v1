@@ -1,5 +1,5 @@
 #include "CANOpenBLDCThread.h"
-#include "esp_log.h"
+#include "ConsolePort.h"
 
 static const char* TAG = "CANOpenBLDC";
 
@@ -31,22 +31,22 @@ CANOpenBLDCThread::CANOpenBLDCThread(uint8_t nodeId, uint32_t canBaudRate)
     m_config.disableOption = 1;
     m_config.faultReaction = 2;
     
-    ESP_LOGI(TAG, "CANOpenBLDCThread created for node %d", nodeId);
+    console_info(TAG, "CANOpenBLDCThread created for node %d", nodeId);
 }
 
 CANOpenBLDCThread::~CANOpenBLDCThread()
 {
-    ESP_LOGI(TAG, "CANOpenBLDCThread destroyed");
+    console_info(TAG, "CANOpenBLDCThread destroyed");
 }
 
 bool CANOpenBLDCThread::Initialize()
 {
-    ESP_LOGI(TAG, "Initializing CANOpenBLDCThread...");
+    console_info(TAG, "Initializing CANOpenBLDCThread...");
     
     // Initialize GPIO configuration
     init_mcu_pinconfig();
     
-    ESP_LOGI(TAG, "CANOpenBLDCThread initialized successfully");
+    console_info(TAG, "CANOpenBLDCThread initialized successfully");
     m_initialized = true;
     return true;
 }
@@ -67,35 +67,35 @@ bool CANOpenBLDCThread::ResetVariables()
     m_motorStatus = {};
     m_motorStatus.lastUpdateTime = os_get_elapsed_time_msec();
     
-    ESP_LOGI(TAG, "CANOpenBLDCThread variables reset");
+    console_info(TAG, "CANOpenBLDCThread variables reset");
     return true;
 }
 
 bool CANOpenBLDCThread::Setup()
 {
-    ESP_LOGI(TAG, "Setting up CANOpen communication...");
+    console_info(TAG, "Setting up CANOpen communication...");
     
     // Create FlexCan interface with configured pins
     m_canInterface = std::make_unique<FlexCan>(0, m_canBaudRate, TWAI_TX_PIN, TWAI_RX_PIN);
     
     if (!m_canInterface) {
-        ESP_LOGE(TAG, "Failed to create FlexCan interface");
+        console_error(TAG, "Failed to create FlexCan interface");
         return false;
     }
     
     // Initialize CAN interface
     if (!m_canInterface->Open()) {
-        ESP_LOGE(TAG, "Failed to initialize CAN interface");
+        console_error(TAG, "Failed to initialize CAN interface");
         return false;
     }
     
     // Setup CANOpen communication
     if (!setupCANOpenCommunication()) {
-        ESP_LOGE(TAG, "Failed to setup CANOpen communication");
+        console_error(TAG, "Failed to setup CANOpen communication");
         return false;
     }
     
-    ESP_LOGI(TAG, "CANOpen communication setup complete");
+    console_info(TAG, "CANOpen communication setup complete");
     return true;
 }
 
@@ -111,11 +111,11 @@ bool CANOpenBLDCThread::setupCANOpenCommunication()
     nmt_frame.data[1] = m_config.nodeId;  // Node ID
     
     if (!m_canInterface->Write(nmt_frame)) {
-        ESP_LOGE(TAG, "Failed to send NMT start command");
+        console_error(TAG, "Failed to send NMT start command");
         return false;
     }
     
-    ESP_LOGI(TAG, "Sent NMT start command to node %d", m_config.nodeId);
+    console_info(TAG, "Sent NMT start command to node %d", m_config.nodeId);
     m_communicationReady = true;
     return true;
 }
@@ -155,7 +155,7 @@ void CANOpenBLDCThread::updateMotorStatus()
     // Check communication timeout
     if (m_communicationReady && 
         (currentTime - m_lastCommunication) > COMMUNICATION_TIMEOUT_MS) {
-        ESP_LOGW(TAG, "Communication timeout detected");
+        console_warn(TAG, "Communication timeout detected");
         m_communicationReady = false;
     }
     
@@ -186,7 +186,7 @@ void CANOpenBLDCThread::handleStateMachine()
             break;
         case DriveState::Fault:
             // Fault state, need fault reset
-            ESP_LOGW(TAG, "Motor in fault state");
+            console_warn(TAG, "Motor in fault state");
             break;
         default:
             break;
@@ -248,7 +248,7 @@ void CANOpenBLDCThread::processCANOpenMessage(const CanFrame& frame)
             processHeartbeat(frame);
             break;
         default:
-            ESP_LOGD(TAG, "Unknown function code: 0x%02X", function_code);
+            console_debug(TAG, "Unknown function code: 0x%02X", function_code);
             break;
     }
 }
@@ -294,7 +294,7 @@ void CANOpenBLDCThread::processEmergencyMessage(const CanFrame& frame)
         uint16_t errorCode = frame.data[0] | (frame.data[1] << 8);
         uint8_t errorRegister = frame.data[2];
         
-        ESP_LOGW(TAG, "Emergency message: Error code 0x%04X, Register 0x%02X", 
+        console_warn(TAG, "Emergency message: Error code 0x%04X, Register 0x%02X", 
                  errorCode, errorRegister);
     }
 }
@@ -333,7 +333,7 @@ void CANOpenBLDCThread::processSDOResponse(const CanFrame& frame)
         uint16_t index = frame.data[1] | (frame.data[2] << 8);
         uint8_t subIndex = frame.data[3];
         
-        ESP_LOGD(TAG, "SDO response: cmd=0x%02X, index=0x%04X, sub=0x%02X",
+        console_debug(TAG, "SDO response: cmd=0x%02X, index=0x%04X, sub=0x%02X",
                  command, index, subIndex);
     }
 }
@@ -342,7 +342,7 @@ void CANOpenBLDCThread::processHeartbeat(const CanFrame& frame)
 {
     if (frame.dlc >= 1) {
         uint8_t state = frame.data[0];
-        ESP_LOGD(TAG, "Heartbeat received: state=%d", state);
+        console_debug(TAG, "Heartbeat received: state=%d", state);
     }
 }
 
@@ -382,7 +382,7 @@ bool CANOpenBLDCThread::sendControlWord(uint16_t controlWord)
     if (m_canInterface) {
         bool result = m_canInterface->Write(sdo_frame);
         if (result) {
-            ESP_LOGD(TAG, "Sent control word: 0x%04X", controlWord);
+            console_debug(TAG, "Sent control word: 0x%04X", controlWord);
         }
         return result;
     }
@@ -392,7 +392,7 @@ bool CANOpenBLDCThread::sendControlWord(uint16_t controlWord)
 
 bool CANOpenBLDCThread::Cleanup()
 {
-    ESP_LOGI(TAG, "Cleaning up CANOpenBLDCThread...");
+    console_info(TAG, "Cleaning up CANOpenBLDCThread...");
     
     // Stop motor if running
     if (m_canInterface && m_communicationReady) {
@@ -405,7 +405,7 @@ bool CANOpenBLDCThread::Cleanup()
         m_canInterface.reset();
     }
     
-    ESP_LOGI(TAG, "CANOpenBLDCThread cleanup complete");
+    console_info(TAG, "CANOpenBLDCThread cleanup complete");
     return true;
 }
 
@@ -413,7 +413,7 @@ bool CANOpenBLDCThread::Cleanup()
 bool CANOpenBLDCThread::EnableMotor()
 {
     if (!m_communicationReady) {
-        ESP_LOGE(TAG, "Communication not ready");
+        console_error(TAG, "Communication not ready");
         return false;
     }
     
@@ -426,7 +426,7 @@ bool CANOpenBLDCThread::EnableMotor()
         case DriveState::SwitchedOn:
             return sendControlWord(CONTROL_SWITCH_ON | CONTROL_ENABLE_VOLTAGE | CONTROL_ENABLE_OPERATION);
         default:
-            ESP_LOGW(TAG, "Cannot enable motor in current state: %d", static_cast<int>(m_currentState));
+            console_warn(TAG, "Cannot enable motor in current state: %d", static_cast<int>(m_currentState));
             return false;
     }
 }
@@ -452,21 +452,21 @@ bool CANOpenBLDCThread::ResetFault()
 bool CANOpenBLDCThread::SetPositionMode(int32_t position, uint32_t velocity, uint32_t acceleration)
 {
     // Implementation for position mode would go here
-    ESP_LOGI(TAG, "SetPositionMode: pos=%ld, vel=%lu, acc=%lu", position, velocity, acceleration);
+    console_info(TAG, "SetPositionMode: pos=%ld, vel=%lu, acc=%lu", position, velocity, acceleration);
     return true;
 }
 
 bool CANOpenBLDCThread::SetVelocityMode(int32_t velocity, uint32_t acceleration)
 {
     // Implementation for velocity mode would go here
-    ESP_LOGI(TAG, "SetVelocityMode: vel=%ld, acc=%lu", velocity, acceleration);
+    console_info(TAG, "SetVelocityMode: vel=%ld, acc=%lu", velocity, acceleration);
     return true;
 }
 
 bool CANOpenBLDCThread::SetTorqueMode(int16_t torque)
 {
     // Implementation for torque mode would go here
-    ESP_LOGI(TAG, "SetTorqueMode: torque=%d", torque);
+    console_info(TAG, "SetTorqueMode: torque=%d", torque);
     return true;
 }
 

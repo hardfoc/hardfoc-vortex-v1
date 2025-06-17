@@ -1,5 +1,5 @@
 #include "WS2812TestThread.h"
-#include "esp_log.h"
+#include "ConsolePort.h"
 #include "hf_gpio_config.hpp"
 
 static const char* TAG = "WS2812Test";
@@ -28,7 +28,7 @@ WS2812TestThread::WS2812TestThread(uint8_t ledCount, uint32_t updateIntervalMs)
     , m_effectDuration(5000)  // 5 seconds per effect
     , m_effectIndex(0)
 {
-    ESP_LOGI(TAG, "WS2812TestThread created with %d LEDs", ledCount);
+    console_info(TAG, "WS2812TestThread created with %d LEDs", ledCount);
 }
 
 WS2812TestThread::~WS2812TestThread()
@@ -43,36 +43,36 @@ WS2812TestThread::~WS2812TestThread()
         m_strip = nullptr;
     }
     
-    ESP_LOGI(TAG, "WS2812TestThread destroyed");
+    console_info(TAG, "WS2812TestThread destroyed");
 }
 
 bool WS2812TestThread::Initialize()
 {
-    ESP_LOGI(TAG, "Initializing WS2812TestThread...");
+    console_info(TAG, "Initializing WS2812TestThread...");
     
     // Initialize pin configuration
     init_mcu_pinconfig();
     
-    ESP_LOGI(TAG, "WS2812TestThread initialized successfully");
+    console_info(TAG, "WS2812TestThread initialized successfully");
     return true;
 }
 
 bool WS2812TestThread::Setup()
 {
-    ESP_LOGI(TAG, "Setting up WS2812 hardware...");
+    console_info(TAG, "Setting up WS2812 hardware...");
     
     // Create WS2812 strip - use the pin from hf_gpio_config.hpp
     m_strip = new WS2812Strip(WS2812_LED_PIN, 0, m_ledCount);
     
     if (!m_strip) {
-        ESP_LOGE(TAG, "Failed to create WS2812Strip");
+        console_error(TAG, "Failed to create WS2812Strip");
         return false;
     }
     
     // Initialize the strip
     esp_err_t ret = m_strip->begin();
     if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to initialize WS2812 strip: %s", esp_err_to_name(ret));
+        console_error(TAG, "Failed to initialize WS2812 strip: error code %d", ret);
         delete m_strip;
         m_strip = nullptr;
         return false;
@@ -82,7 +82,7 @@ bool WS2812TestThread::Setup()
     m_animator = new WS2812Animator(*m_strip, m_ledCount);
     
     if (!m_animator) {
-        ESP_LOGE(TAG, "Failed to create WS2812Animator");
+        console_error(TAG, "Failed to create WS2812Animator");
         delete m_strip;
         m_strip = nullptr;
         return false;
@@ -94,7 +94,7 @@ bool WS2812TestThread::Setup()
     // Initialize timing
     m_effectStartTime = os_get_elapsed_time_msec();
     
-    ESP_LOGI(TAG, "WS2812 hardware setup complete");
+    console_info(TAG, "WS2812 hardware setup complete");
     return true;
 }
 
@@ -113,7 +113,7 @@ uint32_t WS2812TestThread::Step()
 
 bool WS2812TestThread::Cleanup()
 {
-    ESP_LOGI(TAG, "Cleaning up WS2812TestThread...");
+    console_info(TAG, "Cleaning up WS2812TestThread...");
     
     // Turn off all LEDs
     if (m_strip) {
@@ -134,7 +134,7 @@ bool WS2812TestThread::Cleanup()
         m_strip = nullptr;
     }
     
-    ESP_LOGI(TAG, "WS2812TestThread cleanup complete");
+    console_info(TAG, "WS2812TestThread cleanup complete");
     return true;
 }
 
@@ -145,7 +145,7 @@ bool WS2812TestThread::ResetVariables()
     m_effectIndex = 0;
     m_effectStartTime = os_get_elapsed_time_msec();
     
-    ESP_LOGI(TAG, "WS2812TestThread variables reset");
+    console_info(TAG, "WS2812TestThread variables reset");
     return true;
 }
 
@@ -168,7 +168,7 @@ void WS2812TestThread::cycleToNextEffect()
     m_currentEffect = s_effectList[m_effectIndex];
     m_effectStartTime = os_get_elapsed_time_msec();
     
-    ESP_LOGI(TAG, "Switched to effect: %s", getEffectName(m_currentEffect));
+    console_info(TAG, "Switched to effect: %s", getEffectName(m_currentEffect));
 }
 
 void WS2812TestThread::runCurrentEffect()
