@@ -16,7 +16,7 @@ env:
  IDF_TARGET: esp32c6          # one place to change target
  BUILD_PATH: .                # or 'firmware' if project lives in sub‑dir
  # change once, used in all jobs
- ESP_IDF_VERSIONS: '["v5.2.1","release-v5.3"]'
+ ESP_IDF_VERSIONS: '["release-v5.5"]'
 
 defaults:
  run:
@@ -31,15 +31,22 @@ jobs:
    runs-on: ubuntu-latest
    timeout-minutes: 30
    strategy:
-     fail-fast: false
-     matrix:
-       idf_version: [v5.2.1, release-v5.3]
-       build_type: [Release, Debug]
+      fail-fast: false
+      matrix:
+        idf_version: [release-v5.5]
+        build_type: [Release, Debug]
 
    steps:
-     - uses: actions/checkout@v4
-       with:
-         submodules: recursive                      # fetch ESP‑IDF components if used
+
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive                      # fetch ESP‑IDF components if used
+
+      - name: Install clang-format
+        run: sudo apt-get update && sudo apt-get install -y clang-format
+
+      - name: Format check
+        run: clang-format --dry-run --Werror main/*.cpp threads/**/*.cpp threads/**/*.h
 
      # ---------- cache tool‑chain & pip dl's ----------
      - name: Cache ESP‑IDF tool‑chain & pip
