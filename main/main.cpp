@@ -7,13 +7,16 @@
 #include "esp_chip_info.h"
 #include "esp_flash.h"
 #include "esp_system.h"
+#include "esp_log.h"
 
-#include "ws2812_cpp.hpp" // Include the WS2812 strip header
-#include "ws2812_effects.hpp" // Include the WS2812 animator header
-#include "hf_gpio_config.hpp" // Include the GPIO configuration header
+// Include thread headers
+#include "WS2812TestThread.h"
+#include "CANOpenBLDCThread.h"
 
-WS2812Strip strip(WS2812_LED_PIN, 0, 30, LedType::RGB); // Use channel 0 instead of RMT_CHANNEL_0
-WS2812Animator anim(strip);
+// Include GPIO configuration
+#include "hf_gpio_config.hpp"
+
+static const char* TAG = "HardFOC";
 
 void printChipInfo(void)
 {
@@ -43,24 +46,101 @@ void printChipInfo(void)
     printf("Minimum free heap size: %" PRIu32 " bytes\n", esp_get_minimum_free_heap_size());
 }
 
-void app_main(void)
+// Global thread instances
+WS2812TestThread ws2812_thread;
+CANOpenBLDCThread canopen_bldc_thread;
+
+extern "C" void app_main(void)
 {
-    printf("Hello world!\n");
+    printf("HardFOC - Multi-threaded Motor Control System\n");
+    ESP_LOGI(TAG, "Starting HardFOC application");
 
     printChipInfo();
-    strip.begin();
-    // Reduce brightness for a smoother effect
-    strip.setBrightness(64);
-    // Use a rainbow animation to showcase the LEDs
-    anim.setEffect(WS2812Animator::Effect::Rainbow);
-    // Animation speed is controlled by tick() frequency, no setSpeed method needed
 
-    while (true) {
-        anim.tick();
-        vTaskDelay(pdMS_TO_TICKS(20));
+    // Initialize GPIO configuration
+    ESP_LOGI(TAG, "Configuring GPIO pins");
+    init_mcu_pinconfig();
+
+    ESP_LOGI(TAG, "Initializing and starting threads...");
+
+    // Initialize WS2812 test thread
+    if (ws2812_thread.EnsureInitialized()) {
+        ESP_LOGI(TAG, "WS2812 test thread initialized successfully");
+        if (ws2812_thread.Start()) {
+            ESP_LOGI(TAG, "WS2812 test thread started");
+        } else {
+            ESP_LOGE(TAG, "Failed to start WS2812 test thread");
+        }
+    } else {
+        ESP_LOGE(TAG, "Failed to initialize WS2812 test thread");
     }
 
-    printf("Restarting now.\n");
-    fflush(stdout);
-    esp_restart();
+    // Initialize CANOpen BLDC thread
+    if (canopen_bldc_thread.EnsureInitialized()) {
+        ESP_LOGI(TAG, "CANOpen BLDC thread initialized successfully");
+        if (canopen_bldc_thread.Start()) {
+            ESP_LOGI(TAG, "CANOpen BLDC thread started");
+        } else {
+            ESP_LOGE(TAG, "Failed to start CANOpen BLDC thread");
+        }
+    } else {
+        ESP_LOGE(TAG, "Failed to initialize CANOpen BLDC thread");
+    }
+
+    ESP_LOGI(TAG, "All threads started successfully");
+
+    // Main loop - monitor threads and perform system-level tasks
+    uint32_t loopCount = 0;
+    while (true) {
+        // Check thread health
+        bool ws2812Running = ws2812_thread.IsThreadRunning();
+        bool canOpenRunning = canopen_bldc_thread.IsThreadRunning();
+
+        // Log status periodically
+        if (loopCount % 100 == 0) {  // Every 10 seconds
+            ESP_LOGI(TAG, "System Status - WS2812: %s, CANOpen: %s", 
+                     ws2812Running ? "Running" : "Stopped",
+                     canOpenRunning ? "Running" : "Stopped");
+
+            // Print motor status if CANOpen thread is running
+            if (canOpenRunning) {
+                auto motorStatus = canopen_bldc_thread.GetMotorStatus();
+                ESP_LOGI(TAG, "Motor - Present: %s, Enabled: %s, Pos: %d, Vel: %d",
+                         motorStatus.nodePresent ? "Yes" : "No",
+                         motorStatus.isEnabled ? "Yes" : "No",
+                         motorStatus.actualPosition, motorStatus.actualVelocity);
+            }
+
+            // Print free heap
+            printf("Free heap: %" PRIu32 " bytes\n", esp_get_free_heap_size());
+        }
+
+        // Demonstrate motor control every 30 seconds
+        if (loopCount % 300 == 150 && canopen_bldc_thread.IsThreadRunning()) {
+            ESP_LOGI(TAG, "Demonstrating motor control commands");
+            
+            // Enable motor
+            canopen_bldc_thread.EnableMotor();
+            vTaskDelay(pdMS_TO_TICKS(1000));
+            
+            // Try velocity mode
+            canopen_bldc_thread.SetVelocityMode(100);  // 100 RPM
+            vTaskDelay(pdMS_TO_TICKS(5000));
+            
+            // Try position mode
+            canopen_bldc_thread.SetPositionMode(1000);  // Move to position 1000
+            vTaskDelay(pdMS_TO_TICKS(3000));
+            
+            // Disable motor
+            canopen_bldc_thread.DisableMotor();
+        }
+
+        loopCount++;
+        vTaskDelay(pdMS_TO_TICKS(100));  // 100ms main loop
+    }
+
+    // This code would only be reached if the main loop exits (shouldn't happen in normal operation)
+    ESP_LOGI(TAG, "Stopping threads");
+    ws2812_thread.Stop();
+    canopen_bldc_thread.Stop();
 }
