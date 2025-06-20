@@ -17,6 +17,9 @@
 // Include GPIO configuration
 #include "hf_gpio_config.hpp"
 
+// Include HardFOC integration system
+#include "component-handler/API/HardFocIntegration.h"
+
 static const char *TAG = "HardFOC";
 
 void printChipInfo(void) {
@@ -59,6 +62,16 @@ extern "C" void app_main(void) {
   console_info(TAG, "Configuring GPIO pins");
   init_mcu_pinconfig();
 
+  // Initialize the comprehensive HardFOC system
+  console_info(TAG, "Initializing HardFOC system with hardware drivers");
+  if (!HardFocIntegration::Initialize()) {
+    console_error(TAG, "Failed to initialize HardFOC system - aborting");
+    return;
+  }
+
+  // Run system diagnostics
+  HardFocIntegration::RunSystemDiagnostics();
+
   console_info(TAG, "Initializing and starting threads...");
 
   WS2812TestThread ws2812_thread;
@@ -93,6 +106,11 @@ extern "C" void app_main(void) {
   // Main loop - monitor threads and perform system-level tasks
   uint32_t loopCount = 0;
   while (true) {
+    // Run periodic HardFOC system maintenance
+    if (loopCount % 50 == 0) { // Every 5 seconds
+      RunPeriodicSystemMaintenance();
+    }
+    
     // Check thread health
     bool ws2812Running = ws2812_thread.IsThreadRunning();
     bool canOpenRunning = canopen_bldc_thread.IsThreadRunning();
@@ -102,6 +120,10 @@ extern "C" void app_main(void) {
       console_info(TAG, "System Status - WS2812: %s, CANOpen: %s",
                    ws2812Running ? "Running" : "Stopped",
                    canOpenRunning ? "Running" : "Stopped");
+
+      // Check overall system health
+      bool systemHealthy = GetQuickHealthStatus();
+      console_info(TAG, "System Health: %s", systemHealthy ? "HEALTHY" : "DEGRADED");
 
       // Print motor status if CANOpen thread is running
       if (canOpenRunning) {
@@ -114,6 +136,12 @@ extern "C" void app_main(void) {
 
       // Print free heap
       printf("Free heap: %" PRIu32 " bytes\n", esp_get_free_heap_size());
+    }
+
+    // Demonstrate ADC and GPIO every 20 seconds
+    if (loopCount % 200 == 100) {
+      HardFocIntegration::DemoAdcUsage();
+      HardFocIntegration::DemoGpioUsage();
     }
 
     // Demonstrate motor control every 30 seconds
