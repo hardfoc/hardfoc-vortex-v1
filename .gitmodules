@@ -1,3 +1,3 @@
-[submodule "hf-hal"]
-	path = hf-hal
-	url = https://github.com/hardfoc/hf-hal.git
+[submodule "hf-hal-vortex-v1"]
+	path = hf-hal-vortex-v1
+	url = https://github.com/hardfoc/hf-hal-vortex-v1.git
