@@ -1,5 +1,5 @@
 #include "WS2812TestThread.h"
-#include "ConsolePort.h"
+#include "handlers/logger/Logger.h"
 #include "hf_gpio_config.hpp"
 
 static const char *TAG = "WS2812Test";
@@ -21,8 +21,9 @@ WS2812TestThread::WS2812TestThread(uint8_t ledCount, uint32_t updateIntervalMs)
       m_currentEffect(WS2812Animator::Effect::SolidColor), m_effectStartTime(0),
       m_effectDuration(5000) // 5 seconds per effect
       ,
-      m_effectIndex(0) {
-  console_info(TAG, "WS2812TestThread created with %d LEDs", ledCount);
+      m_effectIndex(0),
+      m_cycleCount(0) {
+  Logger::GetInstance().Info(TAG, "WS2812TestThread created with %d LEDs", ledCount);
 }
 
 WS2812TestThread::~WS2812TestThread() {
@@ -36,34 +37,34 @@ WS2812TestThread::~WS2812TestThread() {
     m_strip = nullptr;
   }
 
-  console_info(TAG, "WS2812TestThread destroyed");
+  Logger::GetInstance().Info(TAG, "WS2812TestThread destroyed");
 }
 
-bool WS2812TestThread::Initialize() {
-  console_info(TAG, "Initializing WS2812TestThread...");
+bool WS2812TestThread::Initialize() noexcept {
+  Logger::GetInstance().Info(TAG, "Initializing WS2812TestThread...");
 
   // Initialize pin configuration
   init_mcu_pinconfig();
 
-  console_info(TAG, "WS2812TestThread initialized successfully");
+  Logger::GetInstance().Info(TAG, "WS2812TestThread initialized successfully");
   return true;
 }
 
-bool WS2812TestThread::Setup() {
-  console_info(TAG, "Setting up WS2812 hardware...");
+bool WS2812TestThread::Setup() noexcept {
+  Logger::GetInstance().Info(TAG, "Setting up WS2812 hardware...");
 
   // Create WS2812 strip - use the pin from hf_gpio_config.hpp
   m_strip = new WS2812Strip(WS2812_LED_PIN, 0, m_ledCount);
 
   if (!m_strip) {
-    console_error(TAG, "Failed to create WS2812Strip");
+    Logger::GetInstance().Error(TAG, "Failed to create WS2812Strip");
     return false;
   }
 
   // Initialize the strip
   esp_err_t ret = m_strip->begin();
   if (ret != ESP_OK) {
-    console_error(TAG, "Failed to initialize WS2812 strip: error code %d", ret);
+    Logger::GetInstance().Error(TAG, "Failed to initialize WS2812 strip: error code %d", ret);
     delete m_strip;
     m_strip = nullptr;
     return false;
@@ -73,7 +74,7 @@ bool WS2812TestThread::Setup() {
   m_animator = new WS2812Animator(*m_strip, m_ledCount);
 
   if (!m_animator) {
-    console_error(TAG, "Failed to create WS2812Animator");
+    Logger::GetInstance().Error(TAG, "Failed to create WS2812Animator");
     delete m_strip;
     m_strip = nullptr;
     return false;
@@ -85,11 +86,11 @@ bool WS2812TestThread::Setup() {
   // Initialize timing
   m_effectStartTime = os_get_elapsed_time_msec();
 
-  console_info(TAG, "WS2812 hardware setup complete");
+  Logger::GetInstance().Info(TAG, "WS2812 hardware setup complete");
   return true;
 }
 
-uint32_t WS2812TestThread::Step() {
+uint32_t WS2812TestThread::Step() noexcept {
   // Check if it's time to change effects
   if (isTimeToChangeEffect()) {
     cycleToNextEffect();
@@ -101,8 +102,8 @@ uint32_t WS2812TestThread::Step() {
   return m_updateIntervalMs;
 }
 
-bool WS2812TestThread::Cleanup() {
-  console_info(TAG, "Cleaning up WS2812TestThread...");
+bool WS2812TestThread::Cleanup() noexcept {
+  Logger::GetInstance().Info(TAG, "Cleaning up WS2812TestThread...");
 
   // Turn off all LEDs
   if (m_strip) {
@@ -123,17 +124,17 @@ bool WS2812TestThread::Cleanup() {
     m_strip = nullptr;
   }
 
-  console_info(TAG, "WS2812TestThread cleanup complete");
+  Logger::GetInstance().Info(TAG, "WS2812TestThread cleanup complete");
   return true;
 }
 
-bool WS2812TestThread::ResetVariables() {
+bool WS2812TestThread::ResetVariables() noexcept {
   // Reset effect state
   m_currentEffect = WS2812Animator::Effect::SolidColor;
   m_effectIndex = 0;
   m_effectStartTime = os_get_elapsed_time_msec();
 
-  console_info(TAG, "WS2812TestThread variables reset");
+  Logger::GetInstance().Info(TAG, "WS2812TestThread variables reset");
   return true;
 }
 
@@ -153,7 +154,7 @@ void WS2812TestThread::cycleToNextEffect() {
   m_currentEffect = s_effectList[m_effectIndex];
   m_effectStartTime = os_get_elapsed_time_msec();
 
-  console_info(TAG, "Switched to effect: %s", getEffectName(m_currentEffect));
+  Logger::GetInstance().Info(TAG, "Switched to effect: %s", getEffectName(m_currentEffect));
 }
 
 void WS2812TestThread::runCurrentEffect() {

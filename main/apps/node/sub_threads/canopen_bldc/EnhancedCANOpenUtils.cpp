@@ -168,7 +168,8 @@ uint8_t EnhancedCANOpenUtils::BuildMotorDisableSequence(
 CanFrame
 EnhancedCANOpenUtils::BuildInterpolationPeriod(uint8_t nodeId, uint8_t subIndex,
                                                uint8_t value) noexcept {
-  return BuildSdoDownload(nodeId, 0x60C0, subIndex, value, 1);
+  return BuildSdoDownload(nodeId, ObjectDictionary::INTERPOLATION_TIME_PERIOD, subIndex, value,
+                          1);
 }
 
 uint8_t EnhancedCANOpenUtils::BuildBLDCConfigSequence(

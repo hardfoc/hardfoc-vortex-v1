@@ -1,11 +1,27 @@
-# Main component for HardFOC Vortex V1 application
+# HardFOC Vortex V1 — `main` component (Flux-style layout, no `middleware/`)
+#
+#   main/
+#     app_main.cpp                 Thin IDF entry (like Flux `app_main.cpp`)
+#     apps/
+#       system/api/                `VortexSystemStateMachine`
+#       system/sub_threads/        `VortexSystemThread` (boot table)
+#       supervisor/                Main-task loop after boot (`VortexSupervisor`)
+#       node/sub_threads/          Device workers: WS2812, CANopen BLDC, CANopen host
+#     utils/
+#       CANopen transport: `CanOpenBaseCanLink` in hf-core `handlers/common/canopen/`
+#       vortex_demos.h             Optional demo declarations (legacy)
 
 idf_component_register(
-    SRCS "main.cpp"
-    
-    # Public requirements - components that main depends on and that should be
-    # available to any component that depends on main
-    REQUIRES 
+    SRCS
+        "app_main.cpp"
+        "apps/supervisor/VortexSupervisor.cpp"
+        "apps/system/api/VortexSystemStateMachine.cpp"
+        "apps/system/sub_threads/VortexSystemThread.cpp"
+        "apps/node/sub_threads/ws2812/WS2812TestThread.cpp"
+        "apps/node/sub_threads/canopen_bldc/CANOpenBLDCThread.cpp"
+        "apps/node/sub_threads/canopen_bldc/EnhancedCANOpenUtils.cpp"
+        "apps/node/sub_threads/canopen_host/CanOpenHostServiceThread.cpp"
+    REQUIRES
         freertos
         esp_system
         esp_common
@@ -19,11 +35,7 @@ idf_component_register(
         log
         hf-hal-vortex-v1
         hf-ws2812-rmt-driver
-        threads
-    
-    # Private requirements - components that main uses internally but doesn't
-    # expose to dependent components
-    PRIV_REQUIRES 
+    PRIV_REQUIRES
         spi_flash
         nvs_flash
         esp_partition
@@ -38,15 +50,20 @@ idf_component_register(
         esp_ota
         esp_http_client
         esp_https_ota
-    
-    # Include directories
-    INCLUDE_DIRS "."
+    INCLUDE_DIRS
+        "."
+        "apps/supervisor"
+        "apps/system/api"
+        "apps/system/sub_threads"
+        "apps/node/sub_threads/ws2812"
+        "apps/node/sub_threads/canopen_bldc"
+        "apps/node/sub_threads/canopen_host"
+        "apps/node/canopen"
+        "utils"
 )
 
-# Set C++ standard for this component
 target_compile_features(${COMPONENT_LIB} PRIVATE cxx_std_17)
 
-# Component-specific compile options for better debugging and performance
 target_compile_options(${COMPONENT_LIB} PRIVATE
     -Wall
     -Wextra
@@ -56,7 +73,6 @@ target_compile_options(${COMPONENT_LIB} PRIVATE
     -g
 )
 
-# Component-specific compile definitions
 target_compile_definitions(${COMPONENT_LIB} PRIVATE
     HARDFOC_MAIN_APPLICATION=1
     HARDFOC_VORTEX_API_MAIN=1

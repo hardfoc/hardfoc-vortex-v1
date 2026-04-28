@@ -14,7 +14,7 @@
 #ifndef VORTEX_DEMOS_H_
 #define VORTEX_DEMOS_H_
 
-#include "API/Vortex.h"
+#include "Vortex.h"
 
 #ifdef __cplusplus
 extern "C" {

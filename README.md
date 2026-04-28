@@ -12,7 +12,7 @@
 
 **Advanced motor control platform with unified Vortex API for the HardFOC Vortex V1 board**
 
-[🚀 Quick Start](#-quick-start) • [🔌 Vortex API](#-vortex-api) • [🏗️ Features](#️-features) • [📚 Documentation](#-documentation) • [🧪 Examples](#-examples)
+[🚀 Quick Start](#-quick-start) • [🔌 Vortex API](#-vortex-api) • [🏗️ Features](#️-features) • [📚 Docs (`docs/`)](docs/DOCUMENTATION_INDEX.md) • [🧪 Examples](#-examples)
 
 </div>
 
@@ -197,6 +197,8 @@ for (const auto& component : failed_components) {
 
 ## 🚀 Getting Started
 
+For a full environment and troubleshooting guide, see **[docs/build-guide.md](docs/build-guide.md)**.
+
 ### Prerequisites
 
 - **ESP-IDF v5.5 or newer**
@@ -292,19 +294,20 @@ if (handler) {
 ## 📁 Project Structure
 
 ```
-├── main/                          # Main application
-│   ├── main.cpp                   # Vortex API demonstration
-│   ├── vortex_demos.h            # Demo function declarations
-│   └── CMakeLists.txt             # Main component build config
-├── hf-hal-vortex-v1/             # Vortex HAL (submodule)
-│   ├── API/                       # Unified Vortex API
-│   ├── component-handlers/        # Component managers
-│   ├── utils-and-drivers/         # Drivers and utilities
-│   └── examples/                  # Usage examples
-├── threads/                       # Legacy thread system
-├── CMakeLists.txt                 # Root project configuration
-├── sdkconfig                      # ESP-IDF configuration
-└── README.md                      # This file
+├── main/                          # Firmware (single ESP-IDF `main` component)
+│   ├── app_main.cpp               # Thin entry (Flux-style)
+│   ├── apps/                      # system/, supervisor/, node/sub_threads/
+│   ├── utils/                     # App-side helpers (e.g. CANopen link)
+│   └── CMakeLists.txt
+├── docs/                          # Project docs (main app, build); see DOCUMENTATION_INDEX.md
+├── hal/
+│   └── hf-hal-vortex-v1/          # Vortex HAL (git submodule)
+│       ├── lib/api/               # Vortex API
+│       ├── lib/managers/          # Component managers
+│       └── lib/core/              # Drivers, handlers, hf-utils
+├── CMakeLists.txt                 # Root CMake (points EXTRA_COMPONENT_DIRS at hal/…)
+├── sdkconfig
+└── README.md                      # Only Markdown at repo root; details under docs/
 ```
 
 ## 🛠️ Build Configuration
@@ -314,16 +317,27 @@ The project is configured for ESP-IDF v5.5+ with the following key settings:
 - **Target**: ESP32-C6
 - **C++ Standard**: C++17
 - **Build Type**: Release (optimized)
-- **Components**: Full Vortex HAL + WS2812 + Threads
+- **Components**: Vortex HAL (`hal/hf-hal-vortex-v1`) + WS2812 + `main` workers
 - **Logging Level**: INFO (configurable)
 
 ## 📚 Documentation
 
-- **[📋 Complete Documentation](hf-hal-vortex-v1/DOCUMENTATION_INDEX.md)** - Full API reference
-- **[🔌 Vortex API Guide](hf-hal-vortex-v1/API/README.md)** - Comprehensive API documentation
-- **[🏗️ Hardware Architecture](hf-hal-vortex-v1/docs/development/ARCHITECTURE_GUIDELINES.md)** - System design
-- **[🎯 GPIO Reference](hf-hal-vortex-v1/docs/component-handlers/GPIO_MANAGER_README.md)** - GPIO system guide
-- **[📊 ADC Reference](hf-hal-vortex-v1/docs/component-handlers/ADC_MANAGER_README.md)** - ADC system guide
+**This repository keeps a single Markdown file at the root (`README.md`).** Everything else lives under **`docs/`** or in the HAL submodule.
+
+### Project and `main/` application
+
+- **[Documentation index](docs/DOCUMENTATION_INDEX.md)** — hub for build guide and `main/` docs
+- **[`main/` component](docs/main/README.md)** — boot flow, orchestrator, supervisor, CMake, workers
+- **[Build guide](docs/build-guide.md)** — ESP-IDF setup, clone, build, flash, troubleshooting
+- **[CANopen / motor path](docs/canopen-and-motor-path.md)** — `hf-utils-canopen`, `BaseCan`, DS402 scope, [USB-CAN Python helpers](docs/helpers/usb_can/README.md)
+
+### HAL (submodule)
+
+- **[HAL documentation index](hal/hf-hal-vortex-v1/DOCUMENTATION_INDEX.md)** — full HAL reference
+- **[Vortex API guide](hal/hf-hal-vortex-v1/lib/api/README.md)** — singleton API and handlers
+- **[Layered architecture (handbook)](hal/hf-hal-vortex-v1/docs/hf-development-handbook/process/layered-architecture.md)** — system design
+- **[GPIO reference](hal/hf-hal-vortex-v1/docs/component-handlers/GPIO_MANAGER_README.md)**
+- **[ADC reference](hal/hf-hal-vortex-v1/docs/component-handlers/ADC_MANAGER_README.md)**
 
 ## 🤝 Contributing
 
@@ -339,7 +353,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🆘 Support
 
-- **📚 Documentation**: Start with the [Documentation Index](hf-hal-vortex-v1/DOCUMENTATION_INDEX.md)
+- **📚 Documentation**: [Project docs](docs/DOCUMENTATION_INDEX.md) and [HAL index](hal/hf-hal-vortex-v1/DOCUMENTATION_INDEX.md)
 - **🐛 Issues**: Report bugs via [GitHub Issues](https://github.com/hardfoc/hardfoc-vortex-v1-demo/issues)
 - **💬 Discussions**: Use [GitHub Discussions](https://github.com/hardfoc/hardfoc-vortex-v1-demo/discussions) for questions
 - **📧 Contact**: HardFOC Team

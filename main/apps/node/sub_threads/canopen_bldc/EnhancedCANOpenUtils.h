@@ -2,6 +2,7 @@
 
 #include "CanOpenMotorUtils.h"
 #include "CanOpenUtils.h"
+#include "vortex/VortexProtocol.hpp"
 
 namespace CanOpen {
 
@@ -187,66 +188,64 @@ public:
 };
 
 /**
- * @brief CANOpen object dictionary indices for motor control
+ * @brief CANopen CiA 301 / 402 indices — aliases to **`hf::vortex::VortexProtocol`**.
+ * @details Canonical definitions live in `vortex/VortexProtocol.hpp` (hf-vortex-driver).
+ *          Keep using `CanOpen::ObjectDictionary::*` in app code for backward compatibility.
  */
 namespace ObjectDictionary {
-// Device control
-constexpr uint16_t DEVICE_TYPE = 0x1000;
-constexpr uint16_t ERROR_REGISTER = 0x1001;
-constexpr uint16_t MANUFACTURER_STATUS_REGISTER = 0x1002;
-constexpr uint16_t PREDEFINED_ERROR_FIELD = 0x1003;
-constexpr uint16_t MANUFACTURER_DEVICE_NAME = 0x1008;
-constexpr uint16_t MANUFACTURER_HARDWARE_VERSION = 0x1009;
-constexpr uint16_t MANUFACTURER_SOFTWARE_VERSION = 0x100A;
-constexpr uint16_t GUARD_TIME = 0x100C;
-constexpr uint16_t LIFE_TIME_FACTOR = 0x100D;
-constexpr uint16_t STORE_PARAMETERS = 0x1010;
-constexpr uint16_t RESTORE_DEFAULT_PARAMETERS = 0x1011;
+constexpr uint16_t DEVICE_TYPE = hf::vortex::kIdxDeviceType;
+constexpr uint16_t ERROR_REGISTER = hf::vortex::kIdxErrorRegister;
+constexpr uint16_t MANUFACTURER_STATUS_REGISTER = hf::vortex::kIdxManufacturerStatusRegister;
+constexpr uint16_t PREDEFINED_ERROR_FIELD = hf::vortex::kIdxPredefError;
+constexpr uint16_t MANUFACTURER_DEVICE_NAME = hf::vortex::kIdxManufacturerDeviceName;
+constexpr uint16_t MANUFACTURER_HARDWARE_VERSION = hf::vortex::kIdxManufacturerHardwareVersion;
+constexpr uint16_t MANUFACTURER_SOFTWARE_VERSION = hf::vortex::kIdxManufacturerSoftwareVersion;
+constexpr uint16_t GUARD_TIME = hf::vortex::kIdxGuardTime;
+constexpr uint16_t LIFE_TIME_FACTOR = hf::vortex::kIdxLifeTimeFactor;
+constexpr uint16_t STORE_PARAMETERS = hf::vortex::kIdxStoreParameters;
+constexpr uint16_t RESTORE_DEFAULT_PARAMETERS = hf::vortex::kIdxRestoreDefaultParameters;
 
-// DS402 Motor control objects
-constexpr uint16_t CONTROL_WORD = 0x6040;
-constexpr uint16_t STATUS_WORD = 0x6041;
-constexpr uint16_t MODES_OF_OPERATION = 0x6060;
-constexpr uint16_t MODES_OF_OPERATION_DISPLAY = 0x6061;
-constexpr uint16_t POSITION_DEMAND_VALUE = 0x6062;
-constexpr uint16_t POSITION_ACTUAL_VALUE = 0x6064;
-constexpr uint16_t VELOCITY_DEMAND_VALUE = 0x606B;
-constexpr uint16_t VELOCITY_ACTUAL_VALUE = 0x606C;
-constexpr uint16_t TARGET_TORQUE = 0x6071;
-constexpr uint16_t TORQUE_ACTUAL_VALUE = 0x6077;
-constexpr uint16_t TARGET_POSITION = 0x607A;
-constexpr uint16_t POSITION_RANGE_LIMIT = 0x607B;
-constexpr uint16_t HOME_OFFSET = 0x607C;
-constexpr uint16_t SOFTWARE_POSITION_LIMIT = 0x607D;
-constexpr uint16_t MAX_PROFILE_VELOCITY = 0x607F;
-constexpr uint16_t PROFILE_VELOCITY = 0x6081;
-constexpr uint16_t PROFILE_ACCELERATION = 0x6083;
-constexpr uint16_t PROFILE_DECELERATION = 0x6084;
-constexpr uint16_t QUICK_STOP_DECELERATION = 0x6085;
-constexpr uint16_t MOTION_PROFILE_TYPE = 0x6086;
-constexpr uint16_t POSITION_WINDOW = 0x6067;
-constexpr uint16_t POSITION_WINDOW_TIME = 0x6068;
-constexpr uint16_t VELOCITY_WINDOW = 0x606D;
-constexpr uint16_t VELOCITY_WINDOW_TIME = 0x606E;
-constexpr uint16_t TARGET_VELOCITY = 0x60FF;
+constexpr uint16_t CONTROL_WORD = hf::vortex::kIdxControlword;
+constexpr uint16_t STATUS_WORD = hf::vortex::kIdxStatusword;
+constexpr uint16_t MODES_OF_OPERATION = hf::vortex::kIdxModesOfOperation;
+constexpr uint16_t MODES_OF_OPERATION_DISPLAY = hf::vortex::kIdxModesDisplay;
+constexpr uint16_t POSITION_DEMAND_VALUE = hf::vortex::kIdxPosDemand;
+constexpr uint16_t POSITION_ACTUAL_VALUE = hf::vortex::kIdxPosActual;
+constexpr uint16_t VELOCITY_DEMAND_VALUE = hf::vortex::kIdxVelDemand;
+constexpr uint16_t VELOCITY_ACTUAL_VALUE = hf::vortex::kIdxVelActual;
+constexpr uint16_t TARGET_TORQUE = hf::vortex::kIdxTargetTorque;
+constexpr uint16_t TORQUE_ACTUAL_VALUE = hf::vortex::kIdxTorqueActual;
+constexpr uint16_t TARGET_POSITION = hf::vortex::kIdxTargetPosition;
+constexpr uint16_t POSITION_RANGE_LIMIT = hf::vortex::kIdxPositionRangeLimit;
+constexpr uint16_t HOME_OFFSET = hf::vortex::kIdxHomeOffset;
+constexpr uint16_t SOFTWARE_POSITION_LIMIT = hf::vortex::kIdxSoftwarePositionLimit;
+constexpr uint16_t MAX_PROFILE_VELOCITY = hf::vortex::kIdxMaxProfileVelocity;
+constexpr uint16_t PROFILE_VELOCITY = hf::vortex::kIdxProfileVelocity;
+constexpr uint16_t PROFILE_ACCELERATION = hf::vortex::kIdxProfileAcceleration;
+constexpr uint16_t PROFILE_DECELERATION = hf::vortex::kIdxProfileDeceleration;
+constexpr uint16_t QUICK_STOP_DECELERATION = hf::vortex::kIdxQuickStopDeceleration;
+constexpr uint16_t MOTION_PROFILE_TYPE = hf::vortex::kIdxMotionProfileType;
+constexpr uint16_t POSITION_WINDOW = hf::vortex::kIdxPositionWindow;
+constexpr uint16_t POSITION_WINDOW_TIME = hf::vortex::kIdxPositionWindowTime;
+constexpr uint16_t VELOCITY_WINDOW = hf::vortex::kIdxVelocityWindow;
+constexpr uint16_t VELOCITY_WINDOW_TIME = hf::vortex::kIdxVelocityWindowTime;
+constexpr uint16_t TARGET_VELOCITY = hf::vortex::kIdxTargetVelocity;
+constexpr uint16_t INTERPOLATION_TIME_PERIOD = hf::vortex::kIdxInterpolationTimePeriod;
 
-// Homing mode objects
-constexpr uint16_t HOMING_METHOD = 0x6098;
-constexpr uint16_t HOMING_SPEEDS = 0x6099;
-constexpr uint16_t HOMING_ACCELERATION = 0x609A;
+constexpr uint16_t HOMING_METHOD = hf::vortex::kIdxHomingMethod;
+constexpr uint16_t HOMING_SPEEDS = hf::vortex::kIdxHomingSpeeds;
+constexpr uint16_t HOMING_ACCELERATION = hf::vortex::kIdxHomingAcceleration;
 
-// Motor specific objects
-constexpr uint16_t MOTOR_TYPE = 0x6402;
-constexpr uint16_t MOTOR_CATALOGUE_NUMBER = 0x6403;
-constexpr uint16_t MOTOR_MANUFACTURER = 0x6404;
-constexpr uint16_t MOTOR_RATED_CURRENT = 0x6410;
-constexpr uint16_t MOTOR_RATED_TORQUE = 0x6411;
-constexpr uint16_t MOTOR_RATED_VELOCITY = 0x6412;
-constexpr uint16_t MOTOR_RATED_VOLTAGE = 0x6413;
+constexpr uint16_t MOTOR_TYPE = hf::vortex::kIdxMotorType;
+constexpr uint16_t MOTOR_CATALOGUE_NUMBER = hf::vortex::kIdxMotorCatalogueNumber;
+constexpr uint16_t MOTOR_MANUFACTURER = hf::vortex::kIdxMotorManufacturer;
+constexpr uint16_t MOTOR_RATED_CURRENT = hf::vortex::kIdxMotorRatedCurrent;
+constexpr uint16_t MOTOR_RATED_TORQUE = hf::vortex::kIdxMotorRatedTorque;
+constexpr uint16_t MOTOR_RATED_VELOCITY = hf::vortex::kIdxMotorRatedVelocity;
+constexpr uint16_t MOTOR_RATED_VOLTAGE = hf::vortex::kIdxMotorRatedVoltage;
 
-// Encoder objects
-constexpr uint16_t ENCODER_INCREMENTS = 0x608F;
-constexpr uint16_t ENCODER_RESOLUTION = 0x6090;
+constexpr uint16_t ENCODER_INCREMENTS = hf::vortex::kIdxEncoderIncrements;
+constexpr uint16_t ENCODER_RESOLUTION = hf::vortex::kIdxEncoderResolution;
 } // namespace ObjectDictionary
 
 } // namespace CanOpen

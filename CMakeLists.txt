@@ -1,37 +1,50 @@
-# HardFOC Vortex V1 - ESP-IDF v5.5+ Project Configuration
-# This project demonstrates the unified Vortex API for HardFOC Vortex V1 motor controller board
+# =============================================================================
+# HardFOC Vortex V1 — ESP-IDF project (v5.5+)
+# =============================================================================
+# Layout matches Flux: HAL is the `hf-hal-vortex-v1` component under `hal/`.
+# =============================================================================
 
 cmake_minimum_required(VERSION 3.16)
 
-# Set project name and version
 set(PROJECT_NAME "HardFOC_Vortex_V1")
 set(PROJECT_VER "2.0.0")
 
-# Tell ESP-IDF to treat hf-hal-vortex-v1 and threads as extra components
-set(EXTRA_COMPONENT_DIRS
-    ${CMAKE_CURRENT_LIST_DIR}/hf-hal-vortex-v1
-    ${CMAKE_CURRENT_LIST_DIR}/hf-hal-vortex-v1/utils-and-drivers/hf-core-drivers/external
-    ${CMAKE_CURRENT_LIST_DIR}/hf-hal-vortex-v1/utils-and-drivers/hf-core-drivers/external/hf-ws2812-rmt-driver
-    ${CMAKE_CURRENT_LIST_DIR}/threads
+# --- HAL location (canonical) -------------------------------------------------
+set(HF_HAL_VORTEX_DIR "${CMAKE_CURRENT_LIST_DIR}/hal/hf-hal-vortex-v1")
+if(NOT EXISTS "${HF_HAL_VORTEX_DIR}/CMakeLists.txt")
+    message(FATAL_ERROR
+        "Vortex HAL not found at:\n"
+        "  ${HF_HAL_VORTEX_DIR}\n"
+        "Initialize the submodule from the repo root:\n"
+        "  git submodule update --init --recursive\n"
+        "Expected layout: hal/hf-hal-vortex-v1/ (see .gitmodules).")
+endif()
+
+# Core ships many optional ESP-IDF components from this single directory.
+set(HF_CORE_DRIVER_EXT "${HF_HAL_VORTEX_DIR}/lib/core/hf-core-drivers/external")
+
+list(APPEND EXTRA_COMPONENT_DIRS
+    "${HF_HAL_VORTEX_DIR}"
+    "${HF_CORE_DRIVER_EXT}"
+    "${HF_CORE_DRIVER_EXT}/hf-ws2812-rmt-driver"
 )
 
-# Include ESP-IDF project configuration
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 
-# Set compiler standards for ESP-IDF v5.5+
-set(CMAKE_C_STANDARD 11)
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
-# Enable verbose build output for debugging
-set(CMAKE_VERBOSE_MAKEFILE ON)
-
-# Set build type for better optimization
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
 
-# Project-specific compile definitions
+set(CMAKE_VERBOSE_MAKEFILE ON)
+
+# Language standards (after ESP-IDF `project.cmake` include; consumed by subprojects)
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+project(${PROJECT_NAME} VERSION ${PROJECT_VER})
+
 add_compile_definitions(
     HARDFOC_VORTEX_V1=1
     HARDFOC_VORTEX_API=1
@@ -39,15 +52,9 @@ add_compile_definitions(
     ESP_IDF_VERSION_MINOR=5
 )
 
-# Create the project
-project(${PROJECT_NAME} VERSION ${PROJECT_VER})
-
-# Print build information
-message(STATUS "=== HardFOC Vortex V1 Build Configuration ===")
-message(STATUS "Project: ${PROJECT_NAME} v${PROJECT_VER}")
-message(STATUS "ESP-IDF Version: $ENV{IDF_VER}")
-message(STATUS "Build Type: ${CMAKE_BUILD_TYPE}")
-message(STATUS "C Standard: ${CMAKE_C_STANDARD}")
-message(STATUS "C++ Standard: ${CMAKE_CXX_STANDARD}")
-message(STATUS "Extra Components: ${EXTRA_COMPONENT_DIRS}")
-message(STATUS "=== End Build Configuration ===")
+message(STATUS "=== HardFOC Vortex V1 ===")
+message(STATUS "  HAL:           ${HF_HAL_VORTEX_DIR}")
+message(STATUS "  Extra comps:   ${EXTRA_COMPONENT_DIRS}")
+message(STATUS "  Build type:    ${CMAKE_BUILD_TYPE}")
+message(STATUS "  C / C++:       ${CMAKE_C_STANDARD} / ${CMAKE_CXX_STANDARD}")
+message(STATUS "=========================")

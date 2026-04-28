@@ -1,6 +1,6 @@
 /**
- * @file main.cpp
- * @brief HardFOC Vortex V1 Main Application using Unified Vortex API
+ * @file VortexSupervisor.cpp
+ * @brief Post-boot demo loop and health monitoring (IDF `main` task).
  * 
  * @details This application demonstrates the complete Vortex API for the HardFOC Vortex V1
  *          motor controller board. It showcases all component handlers including GPIO, ADC,
@@ -44,15 +44,12 @@
 #include <esp_chip_info.h>
 #include <esp_flash.h>
 
-// Vortex API - Unified interface to all HardFOC Vortex V1 components
-#include "API/Vortex.h"
+#include "VortexSupervisor.h"
+#include "VortexSystemThread.h"
 
-// HardFOC Logger - Advanced logging system
-#include "Logger.h"
-
-// Thread system (kept for compatibility but will be integrated with Vortex)
 #include "CANOpenBLDCThread.h"
-#include "WS2812TestThread.h"
+#include "Vortex.h"
+#include "handlers/logger/Logger.h"
 
 //==============================================================================
 // CONSTANTS AND CONFIGURATION
@@ -76,10 +73,6 @@ static const uint32_t LED_BLINK_INTERVAL = 20;             // Every 2 seconds
 //==============================================================================
 // GLOBAL VARIABLES
 //==============================================================================
-
-// Thread instances (legacy compatibility)
-static WS2812TestThread ws2812_thread;
-static CANOpenBLDCThread canopen_bldc_thread;
 
 // System statistics
 static uint32_t main_loop_count = 0;
@@ -436,232 +429,109 @@ void DemonstrateTemperature(Vortex& vortex) {
 }
 
 //==============================================================================
-// THREAD INTEGRATION (Legacy Compatibility)
+// THREAD / SUPERVISOR
 //==============================================================================
 
-/**
- * @brief Initialize and start legacy thread system
- */
-void InitializeLegacyThreads() {
-    logger.Info(TAG, LogColor::BRIGHT_CYAN, LogStyle::BOLD, "Initializing legacy thread system...");
-    
-    // Initialize WS2812 test thread
-    if (ws2812_thread.EnsureInitialized()) {
-        logger.Info(TAG, LogColor::GREEN, LogStyle::NORMAL, "✓ WS2812 test thread initialized");
-        if (ws2812_thread.Start()) {
-            logger.Info(TAG, LogColor::GREEN, LogStyle::NORMAL, "✓ WS2812 test thread started");
-        } else {
-            logger.Warn(TAG, LogColor::YELLOW, LogStyle::NORMAL, "✗ Failed to start WS2812 test thread");
-        }
-    } else {
-        logger.Warn(TAG, LogColor::YELLOW, LogStyle::NORMAL, "✗ Failed to initialize WS2812 test thread");
-    }
-    
-    // Initialize CANOpen BLDC thread
-    if (canopen_bldc_thread.EnsureInitialized()) {
-        logger.Info(TAG, LogColor::GREEN, LogStyle::NORMAL, "✓ CANOpen BLDC thread initialized");
-        if (canopen_bldc_thread.Start()) {
-            logger.Info(TAG, LogColor::GREEN, LogStyle::NORMAL, "✓ CANOpen BLDC thread started");
-        } else {
-            logger.Warn(TAG, LogColor::YELLOW, LogStyle::NORMAL, "✗ Failed to start CANOpen BLDC thread");
-        }
-    } else {
-        logger.Warn(TAG, LogColor::YELLOW, LogStyle::NORMAL, "✗ Failed to initialize CANOpen BLDC thread");
-    }
+static void MonitorWorkerThreads(vortex_app::VortexSystemThread& orch) {
+  bool ws2812_running = orch.Ws2812Test().IsThreadRunning();
+  CANOpenBLDCThread* co = orch.CanOpenBldc();
+  bool canopen_running = (co && co->IsThreadRunning());
+
+  logger.Info(TAG, LogColor::CYAN, LogStyle::NORMAL, "Thread Status - WS2812: %s, CANOpen: %s",
+              ws2812_running ? "Running" : "Stopped", canopen_running ? "Running" : "Stopped");
+
+  if (canopen_running) {
+    auto motor_status = co->GetMotorStatus();
+    logger.Info(TAG, LogColor::BLUE, LogStyle::NORMAL,
+                "Motor - Present: %s, Enabled: %s, Pos: %d, Vel: %d", motor_status.nodePresent ? "Yes" : "No",
+                motor_status.isEnabled ? "Yes" : "No", motor_status.actualPosition, motor_status.actualVelocity);
+  }
 }
 
-/**
- * @brief Monitor legacy thread health
- */
-void MonitorLegacyThreads() {
-    bool ws2812_running = ws2812_thread.IsThreadRunning();
-    bool canopen_running = canopen_bldc_thread.IsThreadRunning();
-    
-    logger.Info(TAG, LogColor::CYAN, LogStyle::NORMAL, "Thread Status - WS2812: %s, CANOpen: %s",
-                ws2812_running ? "Running" : "Stopped",
-                canopen_running ? "Running" : "Stopped");
-    
-    // Print motor status if CANOpen thread is running
-    if (canopen_running) {
-        auto motor_status = canopen_bldc_thread.GetMotorStatus();
-        logger.Info(TAG, LogColor::BLUE, LogStyle::NORMAL, 
-                   "Motor - Present: %s, Enabled: %s, Pos: %d, Vel: %d",
-                   motor_status.nodePresent ? "Yes" : "No",
-                   motor_status.isEnabled ? "Yes" : "No",
-                   motor_status.actualPosition, 
-                   motor_status.actualVelocity);
-    }
-}
+void RunVortexSupervisorLoop(Vortex& vortex, vortex_app::VortexSystemThread& orch) {
+  const std::string banner =
+      "========================================\n"
+      "  HardFOC Vortex V1 - Unified API Demo\n"
+      "========================================";
 
-//==============================================================================
-// MAIN APPLICATION ENTRY POINT
-//==============================================================================
+  logger.LogBanner(TAG, banner, AsciiArtFormat{.color = LogColor::BRIGHT_CYAN,
+                                              .style = LogStyle::BOLD,
+                                              .center_art = true,
+                                              .add_border = true,
+                                              .border_char = '=',
+                                              .max_width = 80});
 
-extern "C" void app_main(void) {
-    // Initialize the HardFOC Logger first
-    logger.Initialize();
-    
-    // Print banner using Logger with ASCII art
-    const std::string banner = 
-        "========================================\n"
-        "  HardFOC Vortex V1 - Unified API Demo\n"
-        "========================================";
-    
-    logger.LogBanner(TAG, banner, AsciiArtFormat{
-        .color = LogColor::BRIGHT_CYAN,
-        .style = LogStyle::BOLD,
-        .center_art = true,
-        .add_border = true,
-        .border_char = '=',
-        .max_width = 80
-    });
-    
-    logger.Info(TAG, LogColor::WHITE, LogStyle::NORMAL, "ESP-IDF Version: %s", esp_get_idf_version());
-    logger.Info(TAG, LogColor::WHITE, LogStyle::NORMAL, "Compile Time: %s %s", __DATE__, __TIME__);
-    logger.Info(TAG, LogColor::BRIGHT_CYAN, LogStyle::BOLD, "========================================");
-    
-    logger.Info(TAG, LogColor::BRIGHT_GREEN, LogStyle::BOLD, "Starting HardFOC Vortex V1 application");
-    
-    // Print chip information
-    PrintChipInfo();
-    
-    // Get the unified Vortex API instance
-    logger.Info(TAG, LogColor::BRIGHT_YELLOW, LogStyle::NORMAL, "Obtaining Vortex API instance...");
-    auto& vortex = Vortex::GetInstance();
-    logger.Info(TAG, LogColor::GREEN, LogStyle::BOLD, "✓ Vortex API instance obtained");
-    
-    // Initialize all Vortex systems with proper dependency management
-    logger.Info(TAG, LogColor::BRIGHT_BLUE, LogStyle::BOLD, "Initializing HardFOC Vortex V1 systems...");
-    if (vortex.EnsureInitialized()) {
-        logger.Info(TAG, LogColor::BRIGHT_GREEN, LogStyle::BOLD, "✓ HardFOC Vortex V1 initialization successful!");
-        
-        // Get and display system diagnostics
-        VortexSystemDiagnostics diagnostics;
-        if (vortex.GetSystemDiagnostics(diagnostics)) {
-            PrintSystemDiagnostics(diagnostics);
-        }
-        
-        // Set initial LED status to indicate successful initialization
+  logger.Info(TAG, LogColor::WHITE, LogStyle::NORMAL, "ESP-IDF Version: %s", esp_get_idf_version());
+  logger.Info(TAG, LogColor::WHITE, LogStyle::NORMAL, "Compile Time: %s %s", __DATE__, __TIME__);
+
+  PrintChipInfo();
+
+  VortexSystemDiagnostics diagnostics;
+  if (vortex.GetSystemDiagnostics(diagnostics)) {
+    PrintSystemDiagnostics(diagnostics);
+  }
+
+  vortex.leds.SetStatus(LedAnimation::STATUS_OK);
+
+  logger.Info(TAG, LogColor::BRIGHT_MAGENTA, LogStyle::BOLD, "System Version: %s", vortex.GetSystemVersion().c_str());
+  logger.Info(TAG, LogColor::BRIGHT_CYAN, LogStyle::BOLD, "Entering supervisor loop (main task)...");
+
+  while (true) {
+    if (main_loop_count % SYSTEM_HEALTH_CHECK_INTERVAL == 0) {
+      if (!vortex.PerformHealthCheck()) {
+        logger.Warn(TAG, LogColor::BRIGHT_RED, LogStyle::BOLD, "System health check failed!");
+        vortex.leds.SetStatus(LedAnimation::STATUS_WARN);
+      } else {
         vortex.leds.SetStatus(LedAnimation::STATUS_OK);
-        
-        // Initialize legacy thread system for compatibility
-        InitializeLegacyThreads();
-        
-        logger.Info(TAG, LogColor::BRIGHT_MAGENTA, LogStyle::BOLD, "System Version: %s", vortex.GetSystemVersion().c_str());
-        logger.Info(TAG, LogColor::BRIGHT_GREEN, LogStyle::BOLD, "All systems initialized successfully!");
-        
-        // Main system loop
-        logger.Info(TAG, LogColor::BRIGHT_CYAN, LogStyle::BOLD, "Entering main system loop...");
-        
-        while (true) {
-            // Periodic system health monitoring
-            if (main_loop_count % SYSTEM_HEALTH_CHECK_INTERVAL == 0) {
-                if (!vortex.PerformHealthCheck()) {
-                    logger.Warn(TAG, LogColor::BRIGHT_RED, LogStyle::BOLD, "System health check failed!");
-                    vortex.leds.SetStatus(LedAnimation::STATUS_WARN);
-                } else {
-                    vortex.leds.SetStatus(LedAnimation::STATUS_OK);
-                }
-                last_health_check_time = vortex.GetSystemUptimeMs();
-            }
-            
-            // Periodic status logging
-            if (main_loop_count % STATUS_LOG_INTERVAL == 0) {
-                logger.Info(TAG, LogColor::CYAN, LogStyle::NORMAL, 
-                           "System Status - Uptime: %llu ms, Free Heap: %" PRIu32 " bytes",
-                           vortex.GetSystemUptimeMs(), esp_get_free_heap_size());
-                
-                // Monitor legacy threads
-                MonitorLegacyThreads();
-            }
-            
-            // Demonstrate component functionality
-            if (main_loop_count % DEMO_INTERVAL == 0) {
-                logger.Info(TAG, LogColor::BRIGHT_WHITE, LogStyle::BOLD, "Running component demonstrations...");
-                DemonstrateGpio(vortex);
-                DemonstrateAdc(vortex);
-                DemonstrateLeds(vortex);
-                DemonstrateTemperature(vortex);
-            }
-            
-            // Advanced component demonstrations
-            if (main_loop_count % DEMO_INTERVAL == DEMO_INTERVAL / 2) {
-                logger.Info(TAG, LogColor::BRIGHT_WHITE, LogStyle::BOLD, "Running advanced component demonstrations...");
-                DemonstrateMotorController(vortex);
-                DemonstrateImu(vortex);
-                DemonstrateEncoders(vortex);
-            }
-            
-            // Motor control demonstration (if CANOpen thread is running)
-            if (main_loop_count % MOTOR_DEMO_INTERVAL == 150 && canopen_bldc_thread.IsThreadRunning()) {
-                logger.Info(TAG, LogColor::BRIGHT_BLUE, LogStyle::BOLD, "Demonstrating motor control commands");
-                
-                // Enable motor
-                canopen_bldc_thread.EnableMotor();
-                vTaskDelay(pdMS_TO_TICKS(1000));
-                
-                // Try velocity mode
-                canopen_bldc_thread.SetVelocityMode(100); // 100 RPM
-                vTaskDelay(pdMS_TO_TICKS(3000));
-                
-                // Try position mode
-                canopen_bldc_thread.SetPositionMode(1000); // Move to position 1000
-                vTaskDelay(pdMS_TO_TICKS(3000));
-                
-                // Disable motor
-                canopen_bldc_thread.DisableMotor();
-            }
-            
-            // LED status blinking
-            if (main_loop_count % LED_BLINK_INTERVAL == 0) {
-                // Brief status blink to show system is alive
-                static bool blink_state = false;
-                if (blink_state) {
-                    vortex.leds.SetStatus(LedAnimation::STATUS_OK);
-                } else {
-                    vortex.leds.SetStatus(LedAnimation::STATUS_INIT);
-                }
-                blink_state = !blink_state;
-            }
-            
-            // Increment loop counter and delay
-            main_loop_count++;
-            vTaskDelay(pdMS_TO_TICKS(MAIN_LOOP_DELAY_MS));
-        }
-        
-    } else {
-        logger.Error(TAG, LogColor::BRIGHT_RED, LogStyle::BOLD, "✗ HardFOC Vortex V1 initialization failed!");
-        
-        // Show detailed failure information
-        auto failed_components = vortex.GetFailedComponents();
-        if (!failed_components.empty()) {
-            logger.Error(TAG, LogColor::RED, LogStyle::BOLD, "Failed components:");
-            for (const auto& component : failed_components) {
-                logger.Error(TAG, LogColor::RED, LogStyle::NORMAL, "  - %s", component.c_str());
-            }
-        }
-        
-        auto warnings = vortex.GetSystemWarnings();
-        if (!warnings.empty()) {
-            logger.Error(TAG, LogColor::YELLOW, LogStyle::BOLD, "System warnings:");
-            for (const auto& warning : warnings) {
-                logger.Error(TAG, LogColor::YELLOW, LogStyle::NORMAL, "  - %s", warning.c_str());
-            }
-        }
-        
-        // Set LED to error status
-        vortex.leds.SetStatus(LedAnimation::STATUS_ERROR);
-        
-        // Stay in error state with periodic retries
-        while (true) {
-            logger.Error(TAG, LogColor::BRIGHT_RED, LogStyle::BOLD, "System in error state - attempting recovery...");
-            vTaskDelay(pdMS_TO_TICKS(5000));
-            
-            // Attempt recovery
-            if (vortex.EnsureInitialized()) {
-                logger.Info(TAG, LogColor::BRIGHT_GREEN, LogStyle::BOLD, "✓ System recovery successful!");
-                break;
-            }
-        }
+      }
+      last_health_check_time = vortex.GetSystemUptimeMs();
     }
+
+    if (main_loop_count % STATUS_LOG_INTERVAL == 0) {
+      logger.Info(TAG, LogColor::CYAN, LogStyle::NORMAL,
+                  "System Status - Uptime: %llu ms, Free Heap: %" PRIu32 " bytes", vortex.GetSystemUptimeMs(),
+                  esp_get_free_heap_size());
+      MonitorWorkerThreads(orch);
+    }
+
+    if (main_loop_count % DEMO_INTERVAL == 0) {
+      logger.Info(TAG, LogColor::BRIGHT_WHITE, LogStyle::BOLD, "Running component demonstrations...");
+      DemonstrateGpio(vortex);
+      DemonstrateAdc(vortex);
+      DemonstrateLeds(vortex);
+      DemonstrateTemperature(vortex);
+    }
+
+    if (main_loop_count % DEMO_INTERVAL == DEMO_INTERVAL / 2) {
+      logger.Info(TAG, LogColor::BRIGHT_WHITE, LogStyle::BOLD, "Running advanced component demonstrations...");
+      DemonstrateMotorController(vortex);
+      DemonstrateImu(vortex);
+      DemonstrateEncoders(vortex);
+    }
+
+    CANOpenBLDCThread* co = orch.CanOpenBldc();
+    if (main_loop_count % MOTOR_DEMO_INTERVAL == 150 && co && co->IsThreadRunning()) {
+      logger.Info(TAG, LogColor::BRIGHT_BLUE, LogStyle::BOLD, "Demonstrating motor control commands");
+      co->EnableMotor();
+      vTaskDelay(pdMS_TO_TICKS(1000));
+      co->SetVelocityMode(100);
+      vTaskDelay(pdMS_TO_TICKS(3000));
+      co->SetPositionMode(1000);
+      vTaskDelay(pdMS_TO_TICKS(3000));
+      co->DisableMotor();
+    }
+
+    if (main_loop_count % LED_BLINK_INTERVAL == 0) {
+      static bool blink_state = false;
+      if (blink_state) {
+        vortex.leds.SetStatus(LedAnimation::STATUS_OK);
+      } else {
+        vortex.leds.SetStatus(LedAnimation::STATUS_INIT);
+      }
+      blink_state = !blink_state;
+    }
+
+    main_loop_count++;
+    vTaskDelay(pdMS_TO_TICKS(MAIN_LOOP_DELAY_MS));
+  }
 }
