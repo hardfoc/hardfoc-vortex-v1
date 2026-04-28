@@ -10,6 +10,7 @@
 #include <memory>
 
 class CANOpenBLDCThread;
+class VortexCanHostThread;
 
 namespace vortex_app {
 
@@ -42,9 +43,11 @@ public:
 
   WS2812TestThread& Ws2812Test() noexcept { return ws2812_thread_; }
   CANOpenBLDCThread* CanOpenBldc() noexcept { return canopen_bldc_.get(); }
+  VortexCanHostThread* VortexCanHost() noexcept { return vortex_can_host_.get(); }
 
   /** @brief Used by boot table functions in `VortexSystemThread.cpp` only. */
   std::unique_ptr<CANOpenBLDCThread>& MutableCanOpenBldc() noexcept { return canopen_bldc_; }
+  std::unique_ptr<VortexCanHostThread>& MutableVortexCanHost() noexcept { return vortex_can_host_; }
 
 protected:
   bool Initialize() noexcept override;
@@ -68,6 +71,7 @@ private:
 
   WS2812TestThread ws2812_thread_;
   std::unique_ptr<CANOpenBLDCThread> canopen_bldc_;
+  std::unique_ptr<VortexCanHostThread> vortex_can_host_;
 
   uint8_t thread_stack_[kThreadStackBytes]{};
 };

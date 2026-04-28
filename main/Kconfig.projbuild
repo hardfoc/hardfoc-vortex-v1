@@ -1,0 +1,33 @@
+menu "HardFOC Vortex main (app)"
+
+    choice VORTEX_APP_CAN_BOOT_WORKER
+        prompt "CAN RX drain worker at boot"
+        default VORTEX_APP_CAN_BOOT_BLDC
+        help
+            Only one worker may drain BaseCan::ReceiveMessage on the CANopen bus.
+            Pick CiA402 master, CANopenNode CiA 301 slave, Vortex host demo, or none.
+            CANopen slave requires "Build CANopenNode slave stack" in HardFOC Vortex HAL.
+
+        config VORTEX_APP_CAN_BOOT_BLDC
+            bool "CANOpenBLDCThread (CiA402 master)"
+
+        config VORTEX_APP_CAN_BOOT_CANOPEN_SLAVE
+            bool "CANopenNode slave (CiA 301 + example OD)"
+            depends on HARDFOC_HAL_CANOPENNODE_SLAVE
+
+        config VORTEX_APP_CAN_BOOT_VORTEX_HOST
+            bool "VortexCanHostThread (VortexHostSession + VortexBaseCanTransport)"
+
+        config VORTEX_APP_CAN_BOOT_NONE
+            bool "None"
+    endchoice
+
+    config VORTEX_CANOPEN_NODE_ID
+        int "CANopen node ID (slave boot worker)"
+        range 1 127
+        default 1
+        help
+            Node ID passed to CANopenNode CO_CANopenInit / CO_CANopenInitPDO when the
+            CANopenNode slave boot worker is selected.
+
+endmenu

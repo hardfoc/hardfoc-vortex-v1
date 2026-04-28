@@ -1,4 +1,4 @@
-# HardFOC Vortex V1 — `main` component (Flux-style layout, no `middleware/`)
+﻿# HardFOC Vortex V1 â€” `main` component (Flux-style layout, no `middleware/`)
 #
 #   main/
 #     app_main.cpp                 Thin IDF entry (like Flux `app_main.cpp`)
@@ -6,29 +6,36 @@
 #       system/api/                `VortexSystemStateMachine`
 #       system/sub_threads/        `VortexSystemThread` (boot table)
 #       supervisor/                Main-task loop after boot (`VortexSupervisor`)
-#       node/sub_threads/          Device workers: WS2812, CANopen BLDC, CANopen host
+#       node/sub_threads/          Device workers: WS2812, CAN, CANopen host
 #     utils/
 #       CANopen transport: `CanOpenBaseCanLink` in hf-core `handlers/common/canopen/`
 #       vortex_demos.h             Optional demo declarations (legacy)
 
+set(MAIN_SRCS
+    "app_main.cpp"
+    "apps/supervisor/VortexSupervisor.cpp"
+    "apps/system/api/VortexSystemStateMachine.cpp"
+    "apps/system/sub_threads/VortexSystemThread.cpp"
+    "apps/node/sub_threads/ws2812/WS2812TestThread.cpp"
+    "apps/node/sub_threads/canopen_bldc/CANOpenBLDCThread.cpp"
+    "apps/node/sub_threads/canopen_bldc/EnhancedCANOpenUtils.cpp"
+    "apps/node/sub_threads/canopen_host/CanOpenHostServiceThread.cpp"
+    "apps/node/sub_threads/vortex_host/VortexCanHostThread.cpp"
+)
+if(CONFIG_VORTEX_APP_CAN_BOOT_CANOPEN_SLAVE)
+    list(APPEND MAIN_SRCS "apps/node/canopen/CanopenSlaveRuntime.cpp")
+endif()
+
 idf_component_register(
-    SRCS
-        "app_main.cpp"
-        "apps/supervisor/VortexSupervisor.cpp"
-        "apps/system/api/VortexSystemStateMachine.cpp"
-        "apps/system/sub_threads/VortexSystemThread.cpp"
-        "apps/node/sub_threads/ws2812/WS2812TestThread.cpp"
-        "apps/node/sub_threads/canopen_bldc/CANOpenBLDCThread.cpp"
-        "apps/node/sub_threads/canopen_bldc/EnhancedCANOpenUtils.cpp"
-        "apps/node/sub_threads/canopen_host/CanOpenHostServiceThread.cpp"
+    SRCS ${MAIN_SRCS}
     REQUIRES
         freertos
         esp_system
         esp_common
         esp_timer
         esp_driver_gpio
-        esp_driver_spi_master
-        esp_driver_i2c_master
+        esp_driver_spi
+        esp_driver_i2c
         esp_driver_uart
         esp_driver_ledc
         esp_adc
@@ -47,7 +54,7 @@ idf_component_register(
         esp_event
         esp_wifi
         esp_pm
-        esp_ota
+        app_update
         esp_http_client
         esp_https_ota
     INCLUDE_DIRS
@@ -58,6 +65,7 @@ idf_component_register(
         "apps/node/sub_threads/ws2812"
         "apps/node/sub_threads/canopen_bldc"
         "apps/node/sub_threads/canopen_host"
+        "apps/node/sub_threads/vortex_host"
         "apps/node/canopen"
         "utils"
 )
@@ -76,7 +84,6 @@ target_compile_options(${COMPONENT_LIB} PRIVATE
 target_compile_definitions(${COMPONENT_LIB} PRIVATE
     HARDFOC_MAIN_APPLICATION=1
     HARDFOC_VORTEX_API_MAIN=1
-    ESP_IDF_VERSION_MAJOR=5
-    ESP_IDF_VERSION_MINOR=5
     LOG_LOCAL_LEVEL=ESP_LOG_INFO
 )
+
