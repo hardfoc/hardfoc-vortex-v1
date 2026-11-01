@@ -58,3 +58,4 @@ endfunction()
 
 vortex_host_test(test_router_policy)
 vortex_host_test(test_cia402_rules)
+vortex_host_test(test_fault_policy)
