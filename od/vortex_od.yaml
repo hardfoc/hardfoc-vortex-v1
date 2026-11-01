@@ -1,0 +1,734 @@
+# =============================================================================
+# Vortex V1 object dictionary: the single source (design §4.2, §5)
+# =============================================================================
+# `python3 tools/odgen` regenerates, from this file:
+#   od/canopennode/OD.c, OD.h          CANopenNode v4 object dictionary
+#   od/vortex_v1.eds                   CiA 306 EDS (also packaged in tools/vortex_canopen)
+#   contracts/vortex_od_ids.hpp        C++ indices, addresses, persist spec
+#   tools/vortex_canopen/vortex_canopen/od_ids.py
+#   docs/od-reference.md
+# and records the OD hash per revision in od/vortex_od.lock.json. CI runs
+# `python3 tools/odgen --check`. Change the dictionary → bump device.revision.
+#
+# Schema 1 (see tools/odgen/odgen/model.py for the full key list):
+#   object: var | array | record        CiA 306 ObjectType 7 / 8 / 9
+#   data_type: BOOL I8 I16 I32 I64 U8 U16 U32 U64 R32 R64 VS OS DOM
+#   access: ro | rw | wo | const        pdo: false | t | r | tr
+#   default / low / high                $NODEID+<base>, $REVISION, $OD_HASH, $OD_VERSION
+#   persist: comm | app | cal | none    0x1010:02 / :03 / :04
+#   od_extension: <handler>             served by a C++ OD extension
+#   storage: false                      no OD variable (the extension serves it)
+#   units, scale, docs, tags, fd_only   tools / docs / FD builds
+#   x_<anything>                        extension keys, carried through unvalidated
+# To add objects from another workstream (for example TMC9660 telemetry),
+# put them in their own file under od/ and list it in `includes:`. Take the
+# indices from an area below and add that area's owner.
+# =============================================================================
+schema: 1
+
+device:
+  vendor_name: HardFOC
+  vendor_id: 0x00000000          # Q1: CiA vendor ID not registered yet
+  product_name: HardFOC Vortex V1
+  product_code: 0x00560001
+  revision: {major: 1, minor: 0}  # 0x1018:03 = major << 16 | minor
+  order_code: ""
+  description: CiA 402 servo drive node
+  created_by: HardFOC
+  baud_rates: [10, 20, 50, 125, 250, 500, 800, 1000]
+  lss_supported: true
+  granularity: 8
+
+eds:
+  creation_date: 11-01-2026
+  creation_time: 12:00PM
+
+includes: []
+
+areas:
+  - {first: 0x1000, last: 0x1FFF, name: Communication profile, owner: CiA 301}
+  - {first: 0x2000, last: 0x20FF, name: Board identity, owner: board}
+  - {first: 0x2100, last: 0x21FF, name: Host encoder, owner: sensors}
+  - {first: 0x2200, last: 0x22FF, name: IMU, owner: sensors}
+  - {first: 0x2300, last: 0x23FF, name: Temperatures and power, owner: board}
+  - {first: 0x2400, last: 0x26FF, name: "GPIO, expansion, LED, wireless", owner: board}
+  - {first: 0x2700, last: 0x27FF, name: Control authority, owner: safety}
+  - {first: 0x2800, last: 0x2FFF, name: Parameter store, owner: storage}
+  - {first: 0x3000, last: 0x33FF, name: Axis 1 manufacturer block, owner: drive (0x3030.. axis diagnostics and TMC9660 telemetry)}
+  - {first: 0x4000, last: 0x40FF, name: Fault journal, owner: safety}
+  - {first: 0x4100, last: 0x41FF, name: Service bridge, owner: drive}
+  - {first: 0x4200, last: 0x42FF, name: Diagnostics, owner: platform}
+  - {first: 0x5F00, last: 0x5FFF, name: OD meta, owner: odgen}
+  - {first: 0x6000, last: 0x67FF, name: CiA 402 axis 1, owner: CiA 402}
+
+migrations: []
+
+# ---------------------------------------------------------------------------
+# Default PDO mappings (design §5.4). odgen expands these into 0x1400–0x1403,
+# 0x1600–0x1603, 0x1800–0x1807 and 0x1A00–0x1A07, checks that every mapped
+# entry exists and is mappable in that direction, and that each PDO fits 8 B.
+# TPDO bit 30 is set (no RTR). TPDO5–8 are disabled (bit 31); their IDs are
+# the node-ID + 0x40 suggestion that the `imu-stream` profile enables.
+# ---------------------------------------------------------------------------
+pdo_defaults:
+  rpdo:
+    - {n: 1, cob_id: $NODEID+0x200, transmission_type: 255, event_timer: 0, map: [0x6040, 0x6060], use: "all modes, state and mode changes"}
+    - {n: 2, cob_id: $NODEID+0x300, transmission_type: 1, event_timer: 0, map: [0x6040, 0x607A], use: "pp (async 255 allowed) / csp"}
+    - {n: 3, cob_id: $NODEID+0x400, transmission_type: 1, event_timer: 0, map: [0x6040, 0x60FF], use: "pv / csv"}
+    - {n: 4, cob_id: $NODEID+0x500, transmission_type: 1, event_timer: 0, map: [0x6040, 0x6071], use: "tq / cst"}
+  tpdo:
+    - {n: 1, cob_id: $NODEID+0x40000180, transmission_type: 254, inhibit_time: 100, event_timer: 100, map: [0x6041, 0x6061], use: "state"}
+    - {n: 2, cob_id: $NODEID+0x40000280, transmission_type: 1, map: [0x6041, 0x6064], use: "position modes"}
+    - {n: 3, cob_id: $NODEID+0x40000380, transmission_type: 1, map: [0x6041, 0x606C], use: "velocity modes"}
+    - {n: 4, cob_id: $NODEID+0x40000480, transmission_type: 254, event_timer: 100, map: [0x6077, 0x603F, "0x2300:01", "0x2301:01"], use: "torque, error, temperature, supply"}
+    - {n: 5, cob_id: $NODEID+0xC00001C0, transmission_type: 254, event_timer: 10, map: ["0x2210:01", "0x2210:02", "0x2210:03", "0x2210:04"], use: "IMU quaternion"}
+    - {n: 6, cob_id: $NODEID+0xC00002C0, transmission_type: 254, event_timer: 10, map: ["0x2211:01", "0x2211:02", "0x2211:03", "0x2211:04"], use: "accel"}
+    - {n: 7, cob_id: $NODEID+0xC00003C0, transmission_type: 254, event_timer: 10, map: ["0x2212:01", "0x2212:02", "0x2212:03", "0x2212:04", "0x2212:05"], use: "gyro"}
+    - {n: 8, cob_id: $NODEID+0xC00004C0, transmission_type: 254, event_timer: 10, map: ["0x2101:01", "0x2101:03", "0x2101:07"], use: "host encoder"}
+
+objects:
+  # =========================================================================
+  # 5.1 Communication profile (0x1000–0x1FFF)
+  # =========================================================================
+  - index: 0x1000
+    id: device_type
+    name: Device type
+    data_type: U32
+    access: const
+    default: 0x00020192
+    docs: Profile 402 (0x0192), additional information 0x0002 (servo drive). Verify against CiA 402-2.
+
+  - index: 0x1001
+    id: error_register
+    name: Error register
+    data_type: U8
+    access: ro
+    pdo: t
+    default: 0
+    docs: bit 0 generic, 1 current, 2 voltage, 3 temperature, 4 communication, 5 device profile, 7 manufacturer.
+
+  - index: 0x1003
+    id: pre_defined_error_field
+    name: Pre-defined error field
+    object: array
+    data_type: U32
+    access: ro
+    storage: false
+    od_extension: CO_EM
+    sub0: {name: Number of errors, access: rw, id: number_of_errors}
+    elements: [Standard error field, Standard error field, Standard error field, Standard error field,
+               Standard error field, Standard error field, Standard error field, Standard error field,
+               Standard error field, Standard error field, Standard error field, Standard error field,
+               Standard error field, Standard error field, Standard error field, Standard error field]
+    docs: Error history (16 entries) kept by CO_EM. Writing 0 to sub 0 clears it.
+
+  - index: 0x1005
+    id: cob_id_sync
+    name: COB-ID SYNC message
+    data_type: U32
+    access: rw
+    default: 0x00000080
+    persist: comm
+    docs: SYNC consumer.
+
+  - index: 0x1006
+    id: communication_cycle_period
+    name: Communication cycle period
+    data_type: U32
+    access: rw
+    default: 0
+    units: µs
+    persist: comm
+    docs: SYNC timeout is 1.5× this period. 0x60C2 mirrors it for interpolation.
+
+  - index: 0x1007
+    id: synchronous_window_length
+    name: Synchronous window length
+    data_type: U32
+    access: rw
+    default: 0
+    units: µs
+    persist: comm
+    docs: Synchronous TPDOs are not sent after the window.
+
+  - index: 0x1008
+    id: manufacturer_device_name
+    name: Manufacturer device name
+    data_type: VS
+    access: const
+    default: HardFOC Vortex V1
+
+  - index: 0x1009
+    id: manufacturer_hardware_version
+    name: Manufacturer hardware version
+    data_type: VS
+    access: const
+    default: V1
+    length: 16
+    docs: Board revision, written at boot.
+
+  - index: 0x100A
+    id: manufacturer_software_version
+    name: Manufacturer software version
+    data_type: VS
+    access: const
+    default: ""
+    length: 48
+    docs: Semantic version and git SHA, written at boot.
+
+  - index: 0x1010
+    id: store_parameters
+    name: Store parameters
+    object: array
+    data_type: U32
+    access: rw
+    default: 1
+    od_extension: CO_storage
+    elements:
+      - {name: Save all parameters, id: save_all}
+      - {name: Save communication parameters, id: save_communication}
+      - {name: Save application parameters, id: save_application}
+      - {name: Save calibration parameters, id: save_calibration}
+    docs: Write 0x65766173 ("save"). Refused in Operation Enabled with abort 0x08000022 (flash stalls the cache).
+
+  - index: 0x1011
+    id: restore_default_parameters
+    name: Restore default parameters
+    object: array
+    data_type: U32
+    access: rw
+    default: 1
+    od_extension: CO_storage
+    elements:
+      - {name: Restore all default parameters, id: restore_all}
+      - {name: Restore communication default parameters, id: restore_communication}
+      - {name: Restore application default parameters, id: restore_application}
+      - {name: Restore calibration default parameters, id: restore_calibration}
+    docs: Write 0x64616F6C ("load"). Defaults apply after the next reset.
+
+  - index: 0x1012
+    id: cob_id_time
+    name: COB-ID time stamp object
+    data_type: U32
+    access: rw
+    default: 0x00000100
+    persist: comm
+    docs: TIME consumer. Sets the fault-journal wall clock.
+
+  - index: 0x1014
+    id: cob_id_emcy
+    name: COB-ID EMCY
+    data_type: U32
+    access: rw
+    default: $NODEID+0x80
+    persist: comm
+
+  - index: 0x1015
+    id: inhibit_time_emcy
+    name: Inhibit time EMCY
+    data_type: U16
+    access: rw
+    default: 10
+    units: 100 µs
+    scale: 0.0001
+    persist: comm
+
+  - index: 0x1016
+    id: consumer_heartbeat_time
+    name: Consumer heartbeat time
+    object: array
+    data_type: U32
+    access: rw
+    default: 0
+    persist: comm
+    elements: [Consumer heartbeat time, Consumer heartbeat time, Consumer heartbeat time, Consumer heartbeat time]
+    docs: Bits 16–23 node-ID, bits 0–15 time in ms. A heartbeat ≤ 500 ms is one of the liveness sources required for motion (§5.5).
+
+  - index: 0x1017
+    id: producer_heartbeat_time
+    name: Producer heartbeat time
+    data_type: U16
+    access: rw
+    default: 100
+    units: ms
+    persist: comm
+
+  - index: 0x1018
+    id: identity
+    name: Identity
+    object: record
+    subs:
+      - {sub: 1, id: vendor_id, name: Vendor-ID, data_type: U32, access: const, default: 0x00000000, docs: "Q1 placeholder"}
+      - {sub: 2, id: product_code, name: Product code, data_type: U32, access: const, default: 0x00560001}
+      - {sub: 3, id: revision_number, name: Revision number, data_type: U32, access: const, default: $REVISION, docs: "major << 16 | minor; bumped on every OD change"}
+      - {sub: 4, id: serial_number, name: Serial number, data_type: U32, access: const, default: 0, docs: "low 32 bits of the eFuse MAC, written at boot (LSS address)"}
+
+  - index: 0x1019
+    id: synchronous_counter_overflow_value
+    name: Synchronous counter overflow value
+    data_type: U8
+    access: rw
+    default: 0
+    persist: comm
+    docs: 0 = SYNC without counter.
+
+  - index: 0x1029
+    id: error_behavior
+    name: Error behavior
+    object: array
+    data_type: U8
+    access: rw
+    persist: comm
+    default: [0, 1]
+    elements:
+      - {name: Communication error, id: communication_error, docs: "0 = pre-operational (default)"}
+      - {name: Profile error, id: profile_error, docs: "1 = no change"}
+
+  - index: 0x1200
+    id: sdo_server_1
+    name: SDO server parameter
+    object: record
+    subs:
+      - {sub: 1, id: cob_id_client_to_server, name: COB-ID client to server (rx), data_type: U32, access: ro, pdo: t, default: $NODEID+0x600}
+      - {sub: 2, id: cob_id_server_to_client, name: COB-ID server to client (tx), data_type: U32, access: ro, pdo: t, default: $NODEID+0x580}
+
+  - index: 0x1201
+    id: sdo_server_2
+    name: SDO server parameter 2
+    object: record
+    persist: comm
+    docs: >-
+      Tunnel-only SDO server for the Wi-Fi / ESP-NOW ports (§4.3). These COB-IDs never go on the
+      physical bus; the router delivers only tunnel frames to this server.
+    subs:
+      - {sub: 1, id: cob_id_client_to_server, name: COB-ID client to server (rx), data_type: U32, access: rw, default: $NODEID+0x6C0}
+      - {sub: 2, id: cob_id_server_to_client, name: COB-ID server to client (tx), data_type: U32, access: rw, default: $NODEID+0x5C0}
+
+  - index: 0x1280
+    id: sdo_client_1
+    name: SDO client parameter
+    object: record
+    docs: Local SDO client of the CiA 309-3 gateway (CO_CONFIG_SDO_CLI_LOCAL). Unused when the gateway is compiled out.
+    subs:
+      - {sub: 1, id: cob_id_client_to_server, name: COB-ID client to server (tx), data_type: U32, access: rw, pdo: tr, default: 0x80000000}
+      - {sub: 2, id: cob_id_server_to_client, name: COB-ID server to client (rx), data_type: U32, access: rw, pdo: tr, default: 0x80000000}
+      - {sub: 3, id: node_id_of_the_sdo_server, name: Node-ID of the SDO server, data_type: U8, access: rw, default: 1}
+
+  - index: 0x1F80
+    id: nmt_startup
+    name: NMT startup
+    data_type: U32
+    access: rw
+    default: 0
+    persist: comm
+    docs: bit 2 = 0 waits for NMT start (default); bit 2 = 1 self-starts for stand-alone demos.
+
+  # =========================================================================
+  # 5.3 Manufacturer area (0x2000–0x5FFF)
+  # =========================================================================
+  - index: 0x2000
+    id: firmware_build
+    name: Firmware build
+    object: record
+    docs: Written at boot from the HF_HAL_GIT_SHA_* macros and the IDF version.
+    subs:
+      - {sub: 1, id: app_version, name: Application version, data_type: VS, access: const, length: 32}
+      - {sub: 2, id: hal_sha, name: HAL git SHA, data_type: VS, access: const, length: 40}
+      - {sub: 3, id: core_sha, name: Core git SHA, data_type: VS, access: const, length: 40}
+      - {sub: 4, id: tmc9660_driver_sha, name: TMC9660 driver git SHA, data_type: VS, access: const, length: 40}
+      - {sub: 5, id: as5047u_driver_sha, name: AS5047U driver git SHA, data_type: VS, access: const, length: 40}
+      - {sub: 6, id: bno08x_driver_sha, name: BNO08x driver git SHA, data_type: VS, access: const, length: 40}
+      - {sub: 7, id: canopennode_sha, name: CANopenNode git SHA, data_type: VS, access: const, length: 40}
+      - {sub: 8, id: build_time, name: Build time, data_type: U32, access: const, default: 0, units: s, docs: "Unix time"}
+      - {sub: 9, id: idf_version, name: IDF version, data_type: VS, access: const, length: 32}
+
+  - index: 0x2001
+    id: board_info
+    name: Board info
+    object: record
+    od_extension: BoardInfo
+    subs:
+      - {sub: 1, id: hw_revision, name: Hardware revision, data_type: U8, access: ro}
+      - {sub: 2, id: mac, name: MAC address, data_type: OS, access: ro, length: 6, default: "000000000000"}
+      - {sub: 3, id: reset_reason, name: Reset reason, data_type: U32, access: ro, docs: "esp_reset_reason_t"}
+      - {sub: 4, id: uptime, name: Uptime, data_type: U32, access: ro, units: s}
+      - {sub: 5, id: free_heap, name: Free heap, data_type: U32, access: ro, units: B}
+
+  - index: 0x2002
+    id: component_versions
+    name: Component versions
+    object: record
+    subs:
+      - {sub: 1, id: tmc9660_firmware_id, name: TMC9660 firmware id, data_type: U32, access: ro}
+      - {sub: 2, id: tmc9660_bootloader_id, name: TMC9660 bootloader id, data_type: U32, access: ro}
+      - {sub: 3, id: bno08x_sh2_version, name: BNO08x SH-2 version, data_type: VS, access: ro, length: 24}
+      - {sub: 4, id: as5047u_id, name: AS5047U id, data_type: U16, access: ro}
+
+  - index: 0x2101
+    id: encoder_status
+    name: Encoder status
+    object: record
+    od_extension: EncoderSnapshot
+    tags: [telemetry]
+    docs: Host AS5047U on SPI2 (CS GPIO20). Snapshot published by drive_rt.
+    subs:
+      - {sub: 1, id: angle_raw, name: Angle raw, data_type: U16, access: ro, pdo: t, units: counts, docs: "14-bit"}
+      - {sub: 2, id: angle_compensated, name: Angle compensated, data_type: U16, access: ro, pdo: t, units: counts}
+      - {sub: 3, id: velocity_raw, name: Velocity raw, data_type: I16, access: ro, pdo: t, units: counts/sample}
+      - {sub: 4, id: multi_turn_position, name: Multi-turn position, data_type: I32, access: ro, pdo: t, units: counts}
+      - {sub: 5, id: agc, name: AGC, data_type: U8, access: ro, pdo: t}
+      - {sub: 6, id: magnitude, name: Magnitude, data_type: U16, access: ro, pdo: t}
+      - {sub: 7, id: error_flags, name: Error flags, data_type: U16, access: ro, pdo: t}
+      - {sub: 8, id: comm_errors, name: Communication errors, data_type: U32, access: ro, pdo: t}
+
+  - index: 0x2210
+    id: imu_packed_quaternion
+    name: IMU packed quaternion
+    object: record
+    od_extension: ImuSnapshot
+    tags: [telemetry]
+    docs: Rotation vector, Q14 fixed point (value / 16384). One 8-byte TPDO.
+    subs:
+      - {sub: 1, id: i, name: Quaternion i, data_type: I16, access: ro, pdo: t, scale: 0.00006103515625}
+      - {sub: 2, id: j, name: Quaternion j, data_type: I16, access: ro, pdo: t, scale: 0.00006103515625}
+      - {sub: 3, id: k, name: Quaternion k, data_type: I16, access: ro, pdo: t, scale: 0.00006103515625}
+      - {sub: 4, id: real, name: Quaternion real, data_type: I16, access: ro, pdo: t, scale: 0.00006103515625}
+
+  - index: 0x2211
+    id: imu_packed_accel
+    name: IMU packed acceleration
+    object: record
+    od_extension: ImuSnapshot
+    tags: [telemetry]
+    subs:
+      - {sub: 1, id: x, name: Acceleration x, data_type: I16, access: ro, pdo: t, units: m/s², scale: 0.00390625}
+      - {sub: 2, id: y, name: Acceleration y, data_type: I16, access: ro, pdo: t, units: m/s², scale: 0.00390625}
+      - {sub: 3, id: z, name: Acceleration z, data_type: I16, access: ro, pdo: t, units: m/s², scale: 0.00390625}
+      - {sub: 4, id: sample_counter, name: Sample counter, data_type: U16, access: ro, pdo: t}
+
+  - index: 0x2212
+    id: imu_packed_gyro
+    name: IMU packed gyro
+    object: record
+    od_extension: ImuSnapshot
+    tags: [telemetry]
+    subs:
+      - {sub: 1, id: x, name: Angular rate x, data_type: I16, access: ro, pdo: t, units: rad/s, scale: 0.0009765625}
+      - {sub: 2, id: y, name: Angular rate y, data_type: I16, access: ro, pdo: t, units: rad/s, scale: 0.0009765625}
+      - {sub: 3, id: z, name: Angular rate z, data_type: I16, access: ro, pdo: t, units: rad/s, scale: 0.0009765625}
+      - {sub: 4, id: calibration_status, name: Calibration status, data_type: U8, access: ro, pdo: t}
+      - {sub: 5, id: accuracy, name: Accuracy, data_type: U8, access: ro, pdo: t}
+
+  - index: 0x2300
+    id: temperatures
+    name: Temperatures
+    object: record
+    od_extension: TemperatureSnapshot
+    tags: [telemetry]
+    subs:
+      - {sub: 1, id: ntc, name: Power stage NTC, data_type: I16, access: ro, pdo: t, units: °C, scale: 0.1, docs: "TMC AIN3"}
+      - {sub: 2, id: tmc_chip, name: TMC9660 chip, data_type: I16, access: ro, pdo: t, units: °C, scale: 0.1}
+      - {sub: 3, id: esp32_die, name: ESP32 die, data_type: I16, access: ro, pdo: t, units: °C, scale: 0.1}
+      - {sub: 4, id: motor, name: Motor, data_type: I16, access: ro, pdo: t, units: °C, scale: 0.1, docs: "if fitted"}
+
+  - index: 0x2301
+    id: power
+    name: Power
+    object: record
+    od_extension: PowerSnapshot
+    tags: [telemetry]
+    subs:
+      - {sub: 1, id: supply_voltage, name: Supply voltage, data_type: U16, access: ro, pdo: t, units: mV}
+      - {sub: 2, id: driver_voltage, name: Driver voltage, data_type: U16, access: ro, pdo: t, units: mV}
+      - {sub: 3, id: power_good, name: Power good, data_type: BOOL, access: ro, pdo: t, docs: "PCAL95555 P6"}
+
+  - index: 0x2700
+    id: control_authority
+    name: Control authority
+    object: record
+    od_extension: Authority
+    docs: Owner codes 0 none, 1 CAN, 2 Wi-Fi, 3 ESP-NOW. Authority changes only in Switched On or below; CAN can always revoke (§7.4).
+    subs:
+      - {sub: 1, id: owner, name: Current owner, data_type: U8, access: ro, pdo: t, high: 3}
+      - {sub: 2, id: request, name: Request, data_type: U8, access: rw, high: 3}
+
+  - index: 0x2701
+    id: authority_policy
+    name: Authority policy
+    object: record
+    persist: app
+    subs:
+      - {sub: 1, id: enable_transports, name: Allowed enable transports, data_type: U8, access: rw, default: 0x01, high: 0x07, docs: "bit 0 CAN, bit 1 Wi-Fi, bit 2 ESP-NOW"}
+      - {sub: 2, id: wireless_deadman, name: Wireless deadman, data_type: U16, access: rw, default: 200, low: 20, units: ms}
+      - {sub: 3, id: require_master_liveness, name: Require master liveness, data_type: BOOL, access: rw, default: 1, docs: "§5.5 gate on transition 4"}
+      - {sub: 4, id: wireless_service, name: Wireless service, data_type: BOOL, access: rw, default: 0, docs: "wireless may write 0x1010, 0x4100, 0x2601 (§7.4 rule 5)"}
+
+  - index: 0x2800
+    id: parameter_store_meta
+    name: Parameter store meta
+    object: record
+    od_extension: StoreMeta
+    subs:
+      - {sub: 1, id: store_count, name: Store count, data_type: U32, access: ro}
+      - {sub: 2, id: last_store_result, name: Last store result, data_type: U32, access: ro, docs: "0 ok, else an SDO abort code"}
+      - {sub: 3, id: stored_od_hash, name: OD hash at last store, data_type: U32, access: ro}
+      - {sub: 4, id: records_applied, name: Records applied at restore, data_type: U32, access: ro}
+      - {sub: 5, id: records_dropped, name: Records dropped at restore, data_type: U32, access: ro, docs: "unknown, wrong group, type, length or range"}
+
+  - index: 0x4000
+    id: fault_journal_header
+    name: Fault journal header
+    object: record
+    od_extension: FaultJournal
+    subs:
+      - {sub: 1, id: count, name: Entry count, data_type: U16, access: ro}
+      - {sub: 2, id: head, name: Head, data_type: U16, access: ro}
+      - {sub: 3, id: capacity, name: Capacity, data_type: U16, access: ro, default: 64}
+      - {sub: 4, id: overflow_count, name: Overflow count, data_type: U32, access: ro}
+
+  - index: 0x4001
+    id: fault_journal
+    name: Fault journal
+    data_type: DOM
+    access: ro
+    od_extension: FaultJournal
+    docs: 32-byte entries, read with segmented or block SDO (§5.3 layout).
+
+  - index: 0x4002
+    id: fault_journal_clear
+    name: Fault journal clear
+    data_type: U32
+    access: wo
+    od_extension: FaultJournal
+    docs: Write 0x00726C63 ("clr", the byte order of the 0x1010 / 0x1011 signatures).
+
+  - index: 0x4003
+    id: active_causes
+    name: Active causes
+    object: record
+    od_extension: FaultBook
+    tags: [telemetry]
+    docs: Bit n = cause id n of contracts/vortex_fault_policy.hpp.
+    subs:
+      - {sub: 1, id: active, name: Active causes, data_type: U32, access: ro, pdo: t}
+      - {sub: 2, id: escalated, name: Escalated causes, data_type: U32, access: ro, pdo: t}
+
+  - index: 0x4200
+    id: thread_stats
+    name: Thread stats
+    object: record
+    od_extension: ThreadStats
+    subs:
+      - {sub: 1, id: drive_rt_last, name: drive_rt last step, data_type: U32, access: ro, units: µs}
+      - {sub: 2, id: drive_rt_max, name: drive_rt max step, data_type: U32, access: ro, units: µs}
+      - {sub: 3, id: drive_rt_overruns, name: drive_rt overruns, data_type: U32, access: ro}
+      - {sub: 4, id: co_svc_last, name: co_svc last step, data_type: U32, access: ro, units: µs}
+      - {sub: 5, id: co_svc_max, name: co_svc max step, data_type: U32, access: ro, units: µs}
+      - {sub: 6, id: co_svc_overruns, name: co_svc overruns, data_type: U32, access: ro}
+      - {sub: 7, id: i2c_io_last, name: i2c_io last step, data_type: U32, access: ro, units: µs}
+      - {sub: 8, id: i2c_io_max, name: i2c_io max step, data_type: U32, access: ro, units: µs}
+      - {sub: 9, id: i2c_io_overruns, name: i2c_io overruns, data_type: U32, access: ro}
+      - {sub: 10, id: liveness_stale_mask, name: Liveness stale mask, data_type: U32, access: ro}
+
+  - index: 0x4201
+    id: timing_histogram
+    name: Timing histogram
+    object: record
+    od_extension: ThreadStats
+    docs: Counts per bucket since boot. Jitter is SYNC to RT step start; WCET is the RT step time.
+    subs:
+      - {sub: 1, id: jitter_le_10, name: Jitter up to 10 us, data_type: U32, access: ro}
+      - {sub: 2, id: jitter_le_20, name: Jitter up to 20 us, data_type: U32, access: ro}
+      - {sub: 3, id: jitter_le_50, name: Jitter up to 50 us, data_type: U32, access: ro}
+      - {sub: 4, id: jitter_le_100, name: Jitter up to 100 us, data_type: U32, access: ro}
+      - {sub: 5, id: jitter_le_200, name: Jitter up to 200 us, data_type: U32, access: ro}
+      - {sub: 6, id: jitter_le_500, name: Jitter up to 500 us, data_type: U32, access: ro}
+      - {sub: 7, id: jitter_le_1000, name: Jitter up to 1000 us, data_type: U32, access: ro}
+      - {sub: 8, id: jitter_gt_1000, name: Jitter above 1000 us, data_type: U32, access: ro}
+      - {sub: 9, id: wcet_le_100, name: Step up to 100 us, data_type: U32, access: ro}
+      - {sub: 10, id: wcet_le_150, name: Step up to 150 us, data_type: U32, access: ro}
+      - {sub: 11, id: wcet_le_200, name: Step up to 200 us, data_type: U32, access: ro}
+      - {sub: 12, id: wcet_le_250, name: Step up to 250 us, data_type: U32, access: ro}
+      - {sub: 13, id: wcet_le_300, name: Step up to 300 us, data_type: U32, access: ro}
+      - {sub: 14, id: wcet_le_500, name: Step up to 500 us, data_type: U32, access: ro}
+      - {sub: 15, id: wcet_le_1000, name: Step up to 1000 us, data_type: U32, access: ro}
+      - {sub: 16, id: wcet_gt_1000, name: Step above 1000 us, data_type: U32, access: ro}
+
+  - index: 0x4202
+    id: can_stats
+    name: CAN stats
+    object: record
+    od_extension: CanStats
+    subs:
+      - {sub: 1, id: tec, name: TEC, data_type: U16, access: ro}
+      - {sub: 2, id: rec, name: REC, data_type: U16, access: ro}
+      - {sub: 3, id: state, name: Bus state, data_type: U8, access: ro, docs: "contracts BusState"}
+      - {sub: 4, id: bus_off_count, name: Bus-off count, data_type: U32, access: ro}
+      - {sub: 5, id: rx_overruns, name: RX overruns, data_type: U32, access: ro}
+      - {sub: 6, id: tx_queue_full, name: TX queue full, data_type: U32, access: ro}
+      - {sub: 7, id: drops_can, name: Router drops CAN, data_type: U32, access: ro}
+      - {sub: 8, id: drops_wifi, name: Router drops Wi-Fi, data_type: U32, access: ro}
+      - {sub: 9, id: drops_espnow, name: Router drops ESP-NOW, data_type: U32, access: ro}
+      - {sub: 10, id: drops_host, name: Router drops host, data_type: U32, access: ro}
+
+  - index: 0x5FFE
+    id: od_layout_hash
+    name: OD layout hash
+    data_type: U32
+    access: const
+    default: $OD_HASH
+    docs: CRC32 of the generated OD description (docs excluded). `vortex-canopen info` compares it with the packaged EDS.
+
+  - index: 0x5FFF
+    id: manufacturer_od_version
+    name: Manufacturer OD version
+    data_type: U16
+    access: const
+    default: $OD_VERSION
+    docs: major << 8 | minor.
+
+  # =========================================================================
+  # 5.2 CiA 402 axis 1 (0x6000–0x67FF)
+  # =========================================================================
+  - {index: 0x603F, id: error_code, name: Error code, data_type: U16, access: ro, pdo: t, docs: "last EMCY code of this axis"}
+  - {index: 0x6007, id: abort_connection_option_code, name: Abort connection option code, data_type: I16, access: rw, default: 1, low: 0, high: 3, persist: app, docs: "0 none, 1 fault, 2 disable voltage, 3 quick stop"}
+  - {index: 0x6040, id: controlword, name: Controlword, data_type: U16, access: rw, pdo: r}
+  - {index: 0x6041, id: statusword, name: Statusword, data_type: U16, access: ro, pdo: t}
+  - {index: 0x605A, id: quick_stop_option_code, name: Quick stop option code, data_type: I16, access: rw, default: 2, low: 0, high: 8, persist: app, docs: "2 = quick-stop ramp then Switch On Disabled"}
+  - {index: 0x605B, id: shutdown_option_code, name: Shutdown option code, data_type: I16, access: rw, default: 0, low: 0, high: 1, persist: app}
+  - {index: 0x605C, id: disable_operation_option_code, name: Disable operation option code, data_type: I16, access: rw, default: 1, low: 0, high: 1, persist: app}
+  - {index: 0x605D, id: halt_option_code, name: Halt option code, data_type: I16, access: rw, default: 1, low: 1, high: 4, persist: app}
+  - {index: 0x605E, id: fault_reaction_option_code, name: Fault reaction option code, data_type: I16, access: rw, default: 0, low: 0, high: 4, persist: app, docs: "2 (quick-stop ramp) only where the bridge is healthy"}
+  - {index: 0x6060, id: modes_of_operation, name: Modes of operation, data_type: I8, access: rw, pdo: r, docs: "changes only in Switched On or below, or in Operation Enabled at zero velocity"}
+  - {index: 0x6061, id: modes_of_operation_display, name: Modes of operation display, data_type: I8, access: ro, pdo: t}
+  - {index: 0x6062, id: position_demand_value, name: Position demand value, data_type: I32, access: ro, pdo: t, units: inc}
+  - {index: 0x6064, id: position_actual_value, name: Position actual value, data_type: I32, access: ro, pdo: t, units: inc}
+  - {index: 0x6065, id: following_error_window, name: Following error window, data_type: U32, access: rw, default: 0xFFFFFFFF, persist: app, units: inc, docs: "0xFFFFFFFF = off"}
+  - {index: 0x6066, id: following_error_time_out, name: Following error time out, data_type: U16, access: rw, default: 0, persist: app, units: ms}
+  - {index: 0x6067, id: position_window, name: Position window, data_type: U32, access: rw, default: 0xFFFFFFFF, persist: app, units: inc}
+  - {index: 0x6068, id: position_window_time, name: Position window time, data_type: U16, access: rw, default: 0, persist: app, units: ms}
+  - {index: 0x606B, id: velocity_demand_value, name: Velocity demand value, data_type: I32, access: ro, pdo: t, units: inc/s}
+  - {index: 0x606C, id: velocity_actual_value, name: Velocity actual value, data_type: I32, access: ro, pdo: t, units: inc/s}
+  - {index: 0x606D, id: velocity_window, name: Velocity window, data_type: U16, access: rw, default: 0, persist: app, units: inc/s}
+  - {index: 0x606E, id: velocity_window_time, name: Velocity window time, data_type: U16, access: rw, default: 0, persist: app, units: ms}
+  - {index: 0x6071, id: target_torque, name: Target torque, data_type: I16, access: rw, pdo: r, units: ‰ of 0x6076}
+  - {index: 0x6072, id: max_torque, name: Max torque, data_type: U16, access: rw, default: 1000, persist: app, units: ‰}
+  - {index: 0x6073, id: max_current, name: Max current, data_type: U16, access: rw, default: 1000, persist: app, units: ‰}
+  - {index: 0x6075, id: motor_rated_current, name: Motor rated current, data_type: U32, access: rw, default: 0, persist: app, units: mA}
+  - {index: 0x6076, id: motor_rated_torque, name: Motor rated torque, data_type: U32, access: rw, default: 0, persist: app, units: mNm}
+  - {index: 0x6077, id: torque_actual_value, name: Torque actual value, data_type: I16, access: ro, pdo: t, units: ‰}
+  - {index: 0x6078, id: current_actual_value, name: Current actual value, data_type: I16, access: ro, pdo: t, units: ‰}
+  - {index: 0x6079, id: dc_link_circuit_voltage, name: DC link circuit voltage, data_type: U32, access: ro, pdo: t, units: mV}
+  - {index: 0x607A, id: target_position, name: Target position, data_type: I32, access: rw, pdo: r, units: inc}
+  - {index: 0x607C, id: home_offset, name: Home offset, data_type: I32, access: rw, default: 0, persist: app, units: inc}
+  - index: 0x607D
+    id: software_position_limit
+    name: Software position limit
+    object: array
+    data_type: I32
+    access: rw
+    default: 0
+    persist: app
+    units: inc
+    elements:
+      - {name: Min position limit, id: min}
+      - {name: Max position limit, id: max}
+    docs: Both 0 = no limit. Violation → EMCY 0x8612, quick stop.
+  - {index: 0x607E, id: polarity, name: Polarity, data_type: U8, access: rw, default: 0, persist: app, docs: "bit 7 position, bit 6 velocity (MotorMechanics::invert_output)"}
+  - {index: 0x607F, id: max_profile_velocity, name: Max profile velocity, data_type: U32, access: rw, default: 0, persist: app, units: inc/s}
+  - {index: 0x6080, id: max_motor_speed, name: Max motor speed, data_type: U32, access: rw, default: 0, persist: app, units: rpm, docs: "required for tq / cst (§6.2)"}
+  - {index: 0x6081, id: profile_velocity, name: Profile velocity, data_type: U32, access: rw, default: 0, persist: app, units: inc/s}
+  - {index: 0x6083, id: profile_acceleration, name: Profile acceleration, data_type: U32, access: rw, default: 0, persist: app, units: inc/s²}
+  - {index: 0x6084, id: profile_deceleration, name: Profile deceleration, data_type: U32, access: rw, default: 0, persist: app, units: inc/s²}
+  - {index: 0x6085, id: quick_stop_deceleration, name: Quick stop deceleration, data_type: U32, access: rw, default: 0, persist: app, units: inc/s²}
+  - {index: 0x6086, id: motion_profile_type, name: Motion profile type, data_type: I16, access: rw, default: 0, low: 0, high: 0, persist: app, docs: "0 linear"}
+  - {index: 0x6087, id: torque_slope, name: Torque slope, data_type: U32, access: rw, default: 0, persist: app, units: ‰/s}
+  - index: 0x608F
+    id: position_encoder_resolution
+    name: Position encoder resolution
+    object: array
+    data_type: U32
+    access: rw
+    default: 1
+    persist: app
+    elements:
+      - {name: Encoder increments, id: encoder_increments}
+      - {name: Motor revolutions, id: motor_revolutions}
+  - index: 0x6091
+    id: gear_ratio
+    name: Gear ratio
+    object: array
+    data_type: U32
+    access: rw
+    default: 1
+    persist: app
+    elements:
+      - {name: Motor revolutions, id: motor_revolutions}
+      - {name: Shaft revolutions, id: shaft_revolutions}
+  - index: 0x6092
+    id: feed_constant
+    name: Feed constant
+    object: array
+    data_type: U32
+    access: rw
+    default: 1
+    persist: app
+    elements:
+      - {name: Feed, id: feed}
+      - {name: Shaft revolutions, id: shaft_revolutions}
+  - {index: 0x6098, id: homing_method, name: Homing method, data_type: I8, access: rw, default: 0, persist: app, docs: "17–30 switches, 33/34 index, 35/37 current position; others abort 0x06090030"}
+  - index: 0x6099
+    id: homing_speeds
+    name: Homing speeds
+    object: array
+    data_type: U32
+    access: rw
+    default: 0
+    persist: app
+    units: inc/s
+    elements:
+      - {name: Speed during search for switch, id: switch_search}
+      - {name: Speed during search for zero, id: zero_search}
+  - {index: 0x609A, id: homing_acceleration, name: Homing acceleration, data_type: U32, access: rw, default: 0, persist: app, units: inc/s²}
+  - {index: 0x60B0, id: position_offset, name: Position offset, data_type: I32, access: rw, pdo: r, units: inc}
+  - {index: 0x60B1, id: velocity_offset, name: Velocity offset, data_type: I32, access: rw, pdo: r, units: inc/s}
+  - {index: 0x60B2, id: torque_offset, name: Torque offset, data_type: I16, access: rw, pdo: r, units: ‰}
+  - index: 0x60C2
+    id: interpolation_time_period
+    name: Interpolation time period
+    object: record
+    docs: Mirrors 0x1006 (value × 10^index s).
+    subs:
+      - {sub: 1, id: value, name: Interpolation time period value, data_type: U8, access: rw, default: 1}
+      - {sub: 2, id: index, name: Interpolation time index, data_type: I8, access: rw, default: -3, low: -6, high: -3}
+  - {index: 0x60E0, id: positive_torque_limit_value, name: Positive torque limit value, data_type: U16, access: rw, default: 1000, persist: app, units: ‰}
+  - {index: 0x60E1, id: negative_torque_limit_value, name: Negative torque limit value, data_type: U16, access: rw, default: 1000, persist: app, units: ‰}
+  - index: 0x60E4
+    id: additional_position_actual_value
+    name: Additional position actual value
+    object: array
+    data_type: I32
+    access: ro
+    pdo: t
+    od_extension: EncoderSnapshot
+    units: counts
+    elements:
+      - {name: Host encoder position, id: host_encoder, docs: "AS5047U multi-turn counts"}
+  - {index: 0x60F4, id: following_error_actual_value, name: Following error actual value, data_type: I32, access: ro, pdo: t, units: inc}
+  - {index: 0x60FD, id: digital_inputs, name: Digital inputs, data_type: U32, access: ro, pdo: t, docs: "bit 0 negative limit, 1 positive limit, 2 home (TMC REF); bits 16+ board spare inputs"}
+  - index: 0x60FE
+    id: digital_outputs
+    name: Digital outputs
+    object: array
+    data_type: U32
+    access: rw
+    pdo: r
+    default: 0
+    elements:
+      - {name: Physical outputs, id: physical_outputs}
+      - {name: Bit mask, id: bit_mask}
+  - {index: 0x60FF, id: target_velocity, name: Target velocity, data_type: I32, access: rw, pdo: r, units: inc/s}
+  - {index: 0x6402, id: motor_type, name: Motor type, data_type: U16, access: rw, default: 0, persist: app, docs: "from the catalog row (CiA 402-2 table; verify values)"}
+  - {index: 0x6403, id: motor_catalogue_number, name: Motor catalogue number, data_type: VS, access: rw, default: "", length: 32, persist: app}
+  - {index: 0x6404, id: motor_manufacturer, name: Motor manufacturer, data_type: VS, access: rw, default: "", length: 32, persist: app}
+  - {index: 0x6502, id: supported_drive_modes, name: Supported drive modes, data_type: U32, access: const, default: 0x000003AD, docs: "pp, pv, tq, hm, csp, csv, cst"}
