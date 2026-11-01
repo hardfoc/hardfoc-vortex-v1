@@ -41,3 +41,8 @@ dependencies.lock
 */build/*
 # Build directories
 build/
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
