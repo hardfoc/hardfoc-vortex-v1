@@ -1,0 +1,88 @@
+# Every data type as VAR, ARRAY element and RECORD sub, plus the minimum the
+# CANopenNode stack needs to initialise. Used by test_object_types.py.
+schema: 1
+device:
+  vendor_name: Test
+  vendor_id: 0x12345678
+  product_name: All types
+  product_code: 0x00000042
+  revision: {major: 2, minor: 7}
+objects:
+  - {index: 0x1000, id: device_type, name: Device type, data_type: U32, access: const, default: 0x00020192}
+  - {index: 0x1001, id: error_register, name: Error register, data_type: U8, access: ro, pdo: t}
+  - {index: 0x1014, id: cob_id_emcy, name: COB-ID EMCY, data_type: U32, access: rw, default: $NODEID+0x80}
+  - {index: 0x1016, id: consumer_heartbeat_time, name: Consumer heartbeat time, object: array, data_type: U32, access: rw, default: 0, elements: [Consumer heartbeat time]}
+  - {index: 0x1017, id: producer_heartbeat_time, name: Producer heartbeat time, data_type: U16, access: rw, default: 0, persist: comm}
+  - index: 0x1018
+    id: identity
+    name: Identity
+    object: record
+    subs:
+      - {sub: 1, name: Vendor-ID, data_type: U32, access: const, default: 0x12345678}
+      - {sub: 2, name: Product code, data_type: U32, access: const, default: 0x42}
+      - {sub: 3, name: Revision number, data_type: U32, access: const, default: $REVISION}
+      - {sub: 4, name: Serial number, data_type: U32, access: const}
+  - {index: 0x2001, id: v_bool, name: Bool var, data_type: BOOL, access: rw, default: 1, pdo: tr}
+  - {index: 0x2002, id: v_i8, name: I8 var, data_type: I8, access: rw, default: -100, low: -120, high: 120, pdo: tr}
+  - {index: 0x2003, id: v_i16, name: I16 var, data_type: I16, access: rw, default: -32768, pdo: r}
+  - {index: 0x2004, id: v_i32, name: I32 var, data_type: I32, access: rw, default: -2147483648, low: -2147483648, high: 0, pdo: t}
+  - {index: 0x2005, id: v_u8, name: U8 var, data_type: U8, access: ro, default: 0xFF, pdo: t}
+  - {index: 0x2006, id: v_u16, name: U16 var, data_type: U16, access: wo, default: 0xBEEF, pdo: r}
+  - {index: 0x2007, id: v_u32, name: U32 var, data_type: U32, access: rw, default: 0xDEADBEEF, low: 1, high: 0xFFFFFFFF, persist: app}
+  - {index: 0x2008, id: v_r32, name: R32 var, data_type: R32, access: rw, default: 1.5, pdo: tr, persist: cal}
+  - {index: 0x2009, id: v_vs, name: VS var, data_type: VS, access: rw, default: hello, length: 12, persist: app}
+  - {index: 0x200A, id: v_os, name: OS var, data_type: OS, access: rw, default: "0102030405", persist: app}
+  - {index: 0x200B, id: v_dom, name: Domain var, data_type: DOM, access: rw, od_extension: Blob}
+  - {index: 0x200C, id: v_r64, name: R64 var, data_type: R64, access: rw, default: -0.25}
+  - {index: 0x200D, id: v_i64, name: I64 var, data_type: I64, access: rw, default: -1, pdo: tr}
+  - {index: 0x200E, id: v_u64, name: U64 var, data_type: U64, access: const, default: 0x0102030405060708}
+  - {index: 0x200F, id: v_ext, name: Extension var, data_type: U32, access: ro, storage: false, od_extension: Live, pdo: t}
+  - index: 0x2100
+    id: arr_i16
+    name: I16 array
+    object: array
+    data_type: I16
+    access: rw
+    pdo: tr
+    default: [-1, 0, 1]
+    low: -10
+    high: 10
+    persist: app
+    elements: [{name: First, id: first}, {name: Second, id: second}, {name: Third, id: third}]
+  - index: 0x2101
+    id: arr_u32
+    name: U32 array
+    object: array
+    data_type: U32
+    access: ro
+    default: 7
+    sub0: {access: rw, name: Count}
+    elements: [Value, Value]
+  - index: 0x2200
+    id: rec_all
+    name: Record of everything
+    object: record
+    persist: cal
+    subs:
+      - {sub: 1, id: b, name: B, data_type: BOOL, access: rw, default: 0}
+      - {sub: 2, id: i8, name: I8 sub, data_type: I8, access: rw, default: 5}
+      - {sub: 3, id: i16, name: I16 sub, data_type: I16, access: rw, default: -5}
+      - {sub: 4, id: i32, name: I32 sub, data_type: I32, access: ro, default: 123456, pdo: t}
+      - {sub: 5, id: u8, name: U8 sub, data_type: U8, access: rw, default: 9}
+      - {sub: 6, id: u16, name: U16 sub, data_type: U16, access: rw, default: 9, low: 0, high: 100}
+      - {sub: 7, id: u32, name: U32 sub, data_type: U32, access: rw, default: $NODEID+0x40000180}
+      - {sub: 8, id: r32, name: R32 sub, data_type: R32, access: rw, default: -2.5}
+      - {sub: 9, id: vs, name: VS sub, data_type: VS, access: const, default: rec}
+      - {sub: 10, id: os, name: OS sub, data_type: OS, access: rw, length: 2, default: [0xAA, 0x55]}
+      - {sub: 12, id: r64, name: R64 sub, data_type: R64, access: rw, default: 3.0}
+      - {sub: 13, id: i64, name: I64 sub, data_type: I64, access: rw, default: -9}
+      - {sub: 14, id: u64, name: U64 sub, data_type: U64, access: rw, default: 9}
+  - index: 0x2201
+    id: rec_ext
+    name: Extension record
+    object: record
+    od_extension: Snapshot
+    storage: false
+    subs:
+      - {sub: 1, id: a, name: A, data_type: U16, access: ro, pdo: t}
+      - {sub: 2, id: d, name: Blob, data_type: DOM, access: ro}
