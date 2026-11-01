@@ -40,7 +40,6 @@ idf_component_register(
         esp_adc
         log
         hf-hal-vortex-v1
-        hf-ws2812-rmt-driver
     PRIV_REQUIRES
         spi_flash
         nvs_flash
@@ -49,13 +48,8 @@ idf_component_register(
         soc
         esp_hw_support
         esp_rom
-        esp_netif
-        esp_event
-        esp_wifi
         esp_pm
         app_update
-        esp_http_client
-        esp_https_ota
     INCLUDE_DIRS
         "."
         "apps/supervisor"
