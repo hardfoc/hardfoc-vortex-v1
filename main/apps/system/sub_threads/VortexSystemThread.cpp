@@ -1,7 +1,6 @@
 #include "VortexSystemThread.h"
 
 #include "CANOpenBLDCThread.h"
-#include "VortexCanHostThread.h"
 #if CONFIG_VORTEX_APP_CAN_BOOT_CANOPEN_SLAVE
 #include "CanopenSlaveRuntime.hpp"
 #endif
@@ -71,22 +70,7 @@ bool SetupCanWorker(VortexSystemStateMachine& sm) noexcept {
     Logger::GetInstance().Warn(TAG, "CAN bus unavailable (skip CAN worker)");
     return false;
   }
-#if CONFIG_VORTEX_APP_CAN_BOOT_VORTEX_HOST
-  orch.MutableVortexCanHost() = std::make_unique<VortexCanHostThread>(kDefaultMotorNodeId, *pcan);
-  if (!orch.MutableVortexCanHost()->EnsureInitialized()) {
-    Logger::GetInstance().Warn(TAG, "VortexCanHost EnsureInitialized failed");
-    orch.MutableVortexCanHost().reset();
-    return false;
-  }
-  if (!orch.MutableVortexCanHost()->Start()) {
-    Logger::GetInstance().Warn(TAG, "VortexCanHost Start failed");
-    orch.MutableVortexCanHost().reset();
-    return false;
-  }
-  Logger::GetInstance().Info(TAG, "VortexCanHost thread running (node %u)",
-                             static_cast<unsigned>(kDefaultMotorNodeId));
-  return true;
-#elif CONFIG_VORTEX_APP_CAN_BOOT_CANOPEN_SLAVE
+#if CONFIG_VORTEX_APP_CAN_BOOT_CANOPEN_SLAVE
   if (!StartCanopenSlaveRuntime(*pcan)) {
     Logger::GetInstance().Warn(TAG, "CANopenNode slave runtime failed to start");
     return false;
@@ -114,12 +98,7 @@ bool SetupCanWorker(VortexSystemStateMachine& sm) noexcept {
 
 bool TeardownCanWorker(VortexSystemStateMachine&) noexcept {
   auto& orch = VortexSystemThread::GetInstance();
-#if CONFIG_VORTEX_APP_CAN_BOOT_VORTEX_HOST
-  if (orch.MutableVortexCanHost()) {
-    (void)orch.MutableVortexCanHost()->Stop();
-    orch.MutableVortexCanHost().reset();
-  }
-#elif CONFIG_VORTEX_APP_CAN_BOOT_CANOPEN_SLAVE
+#if CONFIG_VORTEX_APP_CAN_BOOT_CANOPEN_SLAVE
   StopCanopenSlaveRuntime();
 #elif CONFIG_VORTEX_APP_CAN_BOOT_NONE
   (void)orch;
@@ -197,13 +176,6 @@ bool VortexSystemThread::Setup() noexcept {
 uint32_t VortexSystemThread::Step() noexcept {
   ++tick_;
   if ((tick_ % 600U) == 0U) {
-#if CONFIG_VORTEX_APP_CAN_BOOT_VORTEX_HOST
-    auto* vh = vortex_can_host_.get();
-    if (vh && vh->IsThreadRunning()) {
-      Logger::GetInstance().Info(TAG, "VortexCanHost: rx_frames_total=%lu",
-                                 static_cast<unsigned long>(vh->rxFramesTotal()));
-    }
-#endif
 #if CONFIG_VORTEX_APP_CAN_BOOT_BLDC
     auto* co = canopen_bldc_.get();
     if (co && co->IsThreadRunning()) {

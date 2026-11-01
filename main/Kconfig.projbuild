@@ -5,7 +5,7 @@ menu "HardFOC Vortex main (app)"
         default VORTEX_APP_CAN_BOOT_BLDC
         help
             Only one worker may drain BaseCan::ReceiveMessage on the CANopen bus.
-            Pick CiA402 master, CANopenNode CiA 301 slave, Vortex host demo, or none.
+            Pick CiA402 master, CANopenNode CiA 301 slave, or none.
             CANopen slave requires "Build CANopenNode slave stack" in HardFOC Vortex HAL.
 
         config VORTEX_APP_CAN_BOOT_BLDC
@@ -14,9 +14,6 @@ menu "HardFOC Vortex main (app)"
         config VORTEX_APP_CAN_BOOT_CANOPEN_SLAVE
             bool "CANopenNode slave (CiA 301 + example OD)"
             depends on HARDFOC_HAL_CANOPENNODE_SLAVE
-
-        config VORTEX_APP_CAN_BOOT_VORTEX_HOST
-            bool "VortexCanHostThread (VortexHostSession + VortexBaseCanTransport)"
 
         config VORTEX_APP_CAN_BOOT_NONE
             bool "None"

@@ -246,22 +246,8 @@ void DemonstrateMotorController(Vortex& vortex) {
     if (handler) {
         logger.Info(TAG, LogColor::BLUE, LogStyle::NORMAL, "✓ TMC9660 handler available");
         
-        // Get underlying driver
-        auto driver = motors.driver(0);
-        if (driver) {
-            logger.Info(TAG, LogColor::BLUE, LogStyle::NORMAL, "✓ TMC9660 driver available");
-            
-            // Configure motor parameters (safe values)
-            driver->SetTargetVelocity(100);  // 100 RPM
-            driver->SetMaxCurrent(500);      // 500 mA
-            
-            logger.Info(TAG, LogColor::GREEN, LogStyle::NORMAL, "✓ Motor parameters configured");
-            
-            // Note: Motor enabling would be done here in a real application
-            // driver->EnableMotor(true);
-        } else {
-            logger.Warn(TAG, LogColor::YELLOW, LogStyle::NORMAL, "✗ TMC9660 driver not available");
-        }
+        // Read-only at boot: the demo never sets targets or enables the bridge.
+        // Motion belongs to the drive application, under the safety rules.
     } else {
         logger.Warn(TAG, LogColor::YELLOW, LogStyle::NORMAL, "✗ TMC9660 handler not available");
     }
@@ -286,11 +272,10 @@ void DemonstrateImu(Vortex& vortex) {
         logger.Info(TAG, LogColor::YELLOW, LogStyle::NORMAL, "✓ BNO08x handler available");
         
         // Get underlying driver
-        auto driver = imu.GetBno085Driver(0);
-        if (driver) {
-            logger.Info(TAG, LogColor::YELLOW, LogStyle::NORMAL, "✓ BNO085 driver available");
+        if (imu.GetSensor(0) != nullptr) {
+            logger.Info(TAG, LogColor::YELLOW, LogStyle::NORMAL, "✓ BNO08x sensor available");
         } else {
-            logger.Warn(TAG, LogColor::YELLOW, LogStyle::NORMAL, "✗ BNO085 driver not available");
+            logger.Warn(TAG, LogColor::YELLOW, LogStyle::NORMAL, "✗ BNO08x sensor not available");
         }
     } else {
         logger.Warn(TAG, LogColor::YELLOW, LogStyle::NORMAL, "✗ BNO08x handler not available");
