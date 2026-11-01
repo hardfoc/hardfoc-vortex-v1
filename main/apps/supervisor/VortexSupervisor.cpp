@@ -47,7 +47,7 @@
 #include "VortexSupervisor.h"
 #include "VortexSystemThread.h"
 
-#include "CANOpenBLDCThread.h"
+#include "managers/GpioManager.h"
 #include "Vortex.h"
 #include "handlers/logger/Logger.h"
 
@@ -65,7 +65,6 @@ static const uint32_t MAIN_LOOP_DELAY_MS = 100;
 static const uint32_t SYSTEM_HEALTH_CHECK_INTERVAL = 50;  // Every 5 seconds
 static const uint32_t STATUS_LOG_INTERVAL = 100;           // Every 10 seconds
 static const uint32_t DEMO_INTERVAL = 200;                 // Every 20 seconds
-static const uint32_t MOTOR_DEMO_INTERVAL = 300;           // Every 30 seconds
 
 // LED animation timing
 static const uint32_t LED_BLINK_INTERVAL = 20;             // Every 2 seconds
@@ -139,17 +138,17 @@ void PrintSystemDiagnostics(const VortexSystemDiagnostics& diagnostics) {
     logger.Info(TAG, "  LED Management: %s", diagnostics.leds_initialized ? "✓ OK" : "✗ FAIL");
     logger.Info(TAG, "  Temperature Management: %s", diagnostics.temp_initialized ? "✓ OK" : "✗ FAIL");
     
-    if (!diagnostics.failed_components_list.empty()) {
+    if (diagnostics.failed_components_list_count > 0) {
         logger.Warn(TAG, LogColor::BRIGHT_RED, LogStyle::BOLD, "Failed Components:");
-        for (const auto& component : diagnostics.failed_components_list) {
-            logger.Warn(TAG, "  - %s", component.c_str());
+        for (size_t i = 0; i < diagnostics.failed_components_list_count; ++i) {
+            logger.Warn(TAG, "  - %s", diagnostics.failed_components_list[i]);
         }
     }
     
-    if (!diagnostics.warnings.empty()) {
+    if (diagnostics.warnings_count > 0) {
         logger.Warn(TAG, LogColor::BRIGHT_YELLOW, LogStyle::BOLD, "System Warnings:");
-        for (const auto& warning : diagnostics.warnings) {
-            logger.Warn(TAG, "  - %s", warning.c_str());
+        for (size_t i = 0; i < diagnostics.warnings_count; ++i) {
+            logger.Warn(TAG, "  - %s", diagnostics.warnings[i]);
         }
     }
 }
@@ -340,7 +339,7 @@ void DemonstrateLeds(Vortex& vortex) {
         LedAnimation::STATUS_OK,
         LedAnimation::STATUS_WARN,
         LedAnimation::STATUS_ERROR,
-        LedAnimation::STATUS_INIT
+        LedAnimation::STATUS_BOOT
     };
     
     const char* animation_names[] = {
@@ -419,18 +418,8 @@ void DemonstrateTemperature(Vortex& vortex) {
 
 static void MonitorWorkerThreads(vortex_app::VortexSystemThread& orch) {
   bool ws2812_running = orch.Ws2812Test().IsThreadRunning();
-  CANOpenBLDCThread* co = orch.CanOpenBldc();
-  bool canopen_running = (co && co->IsThreadRunning());
-
-  logger.Info(TAG, LogColor::CYAN, LogStyle::NORMAL, "Thread Status - WS2812: %s, CANOpen: %s",
-              ws2812_running ? "Running" : "Stopped", canopen_running ? "Running" : "Stopped");
-
-  if (canopen_running) {
-    auto motor_status = co->GetMotorStatus();
-    logger.Info(TAG, LogColor::BLUE, LogStyle::NORMAL,
-                "Motor - Present: %s, Enabled: %s, Pos: %d, Vel: %d", motor_status.nodePresent ? "Yes" : "No",
-                motor_status.isEnabled ? "Yes" : "No", motor_status.actualPosition, motor_status.actualVelocity);
-  }
+  logger.Info(TAG, LogColor::CYAN, LogStyle::NORMAL, "Thread Status - LED demo: %s",
+              ws2812_running ? "Running" : "Stopped");
 }
 
 void RunVortexSupervisorLoop(Vortex& vortex, vortex_app::VortexSystemThread& orch) {
@@ -494,24 +483,15 @@ void RunVortexSupervisorLoop(Vortex& vortex, vortex_app::VortexSystemThread& orc
       DemonstrateEncoders(vortex);
     }
 
-    CANOpenBLDCThread* co = orch.CanOpenBldc();
-    if (main_loop_count % MOTOR_DEMO_INTERVAL == 150 && co && co->IsThreadRunning()) {
-      logger.Info(TAG, LogColor::BRIGHT_BLUE, LogStyle::BOLD, "Demonstrating motor control commands");
-      co->EnableMotor();
-      vTaskDelay(pdMS_TO_TICKS(1000));
-      co->SetVelocityMode(100);
-      vTaskDelay(pdMS_TO_TICKS(3000));
-      co->SetPositionMode(1000);
-      vTaskDelay(pdMS_TO_TICKS(3000));
-      co->DisableMotor();
-    }
+    // No timed motion demos: the drive moves only under the CiA 402 state
+    // machine of the CANopen device, never from a supervisor timer.
 
     if (main_loop_count % LED_BLINK_INTERVAL == 0) {
       static bool blink_state = false;
       if (blink_state) {
         vortex.leds.SetStatus(LedAnimation::STATUS_OK);
       } else {
-        vortex.leds.SetStatus(LedAnimation::STATUS_INIT);
+        vortex.leds.SetStatus(LedAnimation::STATUS_BOOT);
       }
       blink_state = !blink_state;
     }

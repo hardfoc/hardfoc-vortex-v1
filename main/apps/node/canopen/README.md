@@ -9,8 +9,6 @@
 | **`hf-utils-canopen`** | Frame builders (`BuildNmt`, `BuildSdoDownload`, `BuildSdoUpload`, motor helpers). |
 | **`CanOpenExtras.h`** | **Inverse** helpers: **`ParseSdoResponse`**, **`ParseEmergency`**, **`ParseHeartbeat`**, **`DecodeStatusWord`**. |
 | **`hf-vortex-driver` `VortexProtocol.hpp`** | **Canonical CiA 301 / 402 index constants** (`hf::vortex::kIdx*`) for firmware and tooling. |
-| **`CANOpenBLDCThread`** | **CiA402 master/client** (default boot worker via **menuconfig**): NMT start; **periodic SDO poll** of **0x6041**, **0x6064**, **0x606C**, **0x6061**; **DS402 controlword ramp** to *Operation enabled*; **modes** PP / PV / profile torque; **profile** objects **0x6081–0x6084**; **homing** **0x6098 / 0x6099 / 0x609A** + start; EMCY / HB / expedited SDO RX; best-effort TPDO-shaped RX. |
-| **`CanOpenHostServiceThread`** | Optional **RX drain + callback** pattern — **do not run two threads that both `Read()` the same `BaseCan`** unless the HAL provides fan-out or a shared queue. |
 
 This stack path is a **CiA402-oriented CAN master / client**, **not** a certified **CANopen slave node** (no full object dictionary server, no PDO mapper, no CANopenNode).
 

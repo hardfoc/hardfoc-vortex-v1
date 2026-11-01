@@ -17,9 +17,6 @@ set(MAIN_SRCS
     "apps/system/api/VortexSystemStateMachine.cpp"
     "apps/system/sub_threads/VortexSystemThread.cpp"
     "apps/node/sub_threads/ws2812/WS2812TestThread.cpp"
-    "apps/node/sub_threads/canopen_bldc/CANOpenBLDCThread.cpp"
-    "apps/node/sub_threads/canopen_bldc/EnhancedCANOpenUtils.cpp"
-    "apps/node/sub_threads/canopen_host/CanOpenHostServiceThread.cpp"
 )
 if(CONFIG_VORTEX_APP_CAN_BOOT_CANOPEN_SLAVE)
     list(APPEND MAIN_SRCS "apps/node/canopen/CanopenSlaveRuntime.cpp")
@@ -56,7 +53,6 @@ idf_component_register(
         "apps/system/api"
         "apps/system/sub_threads"
         "apps/node/sub_threads/ws2812"
-        "apps/node/sub_threads/canopen_bldc"
         "apps/node/sub_threads/canopen_host"
         "apps/node/canopen"
         "utils"
