@@ -1,152 +1,117 @@
-name: CI • Build · Size · Static Analyse · Scan
+name: CI • Build · Size · Static Analysis · Scan
 
 on:
- push:
-   branches: [main]
- pull_request:
-   branches: [main]
- workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 # Cancel superseded runs to save minutes
 concurrency:
- group: ci-${{ github.ref }}
- cancel-in-progress: true
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
- IDF_TARGET: esp32c6          # one place to change target
- BUILD_PATH: .                # or 'firmware' if project lives in sub‑dir
- # change once, used in all jobs
- ESP_IDF_VERSIONS: '["release-v5.5"]'
+  IDF_TARGET: esp32c6          # one place to change target
 
 defaults:
- run:
-   shell: bash
+  run:
+    shell: bash
 
-########################################################################
-# 1) BUILD & SIZE
-########################################################################
 jobs:
- build:
-   name: Build ➜ ${{ matrix.idf_version }} · ${{ matrix.build_type }}
-   runs-on: ubuntu-latest
-   timeout-minutes: 30
-   strategy:
+  ########################################################################
+  # 1) BUILD & SIZE
+  ########################################################################
+  build:
+    name: Build ➜ ${{ matrix.idf_version }} · ${{ matrix.build_type }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
       fail-fast: false
       matrix:
         idf_version: [release-v5.5]
         build_type: [Release, Debug]
 
-   steps:
-
+    steps:
       - uses: actions/checkout@v4
+
+      # The HAL's docs/hf-development-handbook submodule is private and cannot
+      # be cloned with the workflow token, so initialise everything else.
+      - name: Checkout submodules (except the private handbook)
+        run: |
+          git submodule update --init hal/hf-hal-vortex-v1
+          git -C hal/hf-hal-vortex-v1 submodule init
+          git -C hal/hf-hal-vortex-v1 config submodule.docs/hf-development-handbook.update none
+          git submodule update --init --recursive
+
+      # Builds inside Espressif's espressif/idf Docker image; the size report
+      # runs in the same container because the runner has no ESP-IDF install.
+      - name: ESP-IDF build and size report
+        uses: espressif/esp-idf-ci-action@v1.2.0
         with:
-          submodules: recursive                      # fetch ESP‑IDF components if used
+          esp_idf_version: ${{ matrix.idf_version }}
+          target: ${{ env.IDF_TARGET }}
+          command: >-
+            idf.py -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} build &&
+            idf.py size-components > build/size.txt &&
+            idf.py size --format json2 > build/size.json
 
-      - name: Install clang-format
-        run: sudo apt-get update && sudo apt-get install -y clang-format
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: fw-${{ matrix.idf_version }}-${{ matrix.build_type }}
+          retention-days: 14
+          if-no-files-found: ignore
+          path: |
+            build/*.bin
+            build/*.elf
+            build/*.map
+            build/size.*
 
-      - name: Format check
-        run: clang-format --dry-run --Werror main/*.cpp threads/**/*.cpp threads/**/*.h
+  ########################################################################
+  # 2) STATIC ANALYSIS (cppcheck, shared HardFOC workflow)
+  ########################################################################
+  static-analysis:
+    name: Static analysis (cppcheck)
+    uses: hardfoc/hf-general-ci-tools/.github/workflows/ru-cpp-analysis.yml@main
+    with:
+      paths: "main"
+      std: "c++17"
+      enable: "warning,style,performance,portability,information"
 
-     # ---------- cache tool‑chain & pip dl's ----------
-     - name: Cache ESP‑IDF tool‑chain & pip
-       uses: actions/cache@v4
-       with:
-         key:  ${{ runner.os }}‑idf‑${{ matrix.idf_version }}
-         restore-keys: |
-           ${{ runner.os }}‑idf‑
-         path: |
-           ~/.espressif            # esp‑idf tools
-           ~/.cache/pip            # python wheels
+  ########################################################################
+  # 3) CODE SCANNING (GitHub CodeQL, build-less C/C++)
+  ########################################################################
+  codeql:
+    name: CodeQL static scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
 
-     # ---------- build inside Espressif’s official Docker action ----------
-     - name: ESP‑IDF build
-       uses: espressif/esp-idf-ci-action@v1           # pin major, see README for SHA‑pin
-       with:
-         esp_idf_version:  ${{ matrix.idf_version }}
-         target:           ${{ env.IDF_TARGET }}
-         path:             ${{ env.BUILD_PATH }}
-         command: |
-           idf.py -DIDF_TARGET=${{ env.IDF_TARGET }} \
-                  -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
-                  build
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: c-cpp
+          build-mode: none
+          queries: security-extended
 
+      - uses: github/codeql-action/analyze@v3
 
-       # action wraps the `espressif/idf` Docker image, saving ~5 min install time 
-
-     # ---------- binary‑size report (human + JSON) ----------
-     - name: Size report
-       run: |
-         . "${IDF_PATH}/export.sh"
-         idf.py size-components > build/size.txt
-         idf.py size-json       > build/size.json
-
-     # ---------- publish artefacts ----------
-     - uses: actions/upload-artifact@v4
-       if: always()
-       with:
-         name: fw-${{ matrix.idf_version }}-${{ matrix.build_type }}
-         retention-days: 14
-         path: |
-           build/*.bin
-           build/*.elf
-           build/*.map
-           build/size.*
-
-########################################################################
-# 2) STATIC ANALYSIS  (cppcheck + clang‑tidy with PR annotations)
-########################################################################
- static-analysis:
-   name: Static analyse (cppcheck + clang‑tidy)
-   runs-on: ubuntu-latest
-   needs: build
-
-   steps:
-     - uses: actions/checkout@v4
-       with:
-         submodules: recursive
-
-     # -------- cppcheck, annotates PR via checks API (no extra tokens) -------
-     - uses: Sydius/cppcheck-action@v1
-       with:
-         github_token: ${{ secrets.GITHUB_TOKEN }}
-         enable: all
-         inconclusive: true
-         std: c99
-         include: main
-
-     # -------- clang‑tidy, configurable via .clang‑tidy file ---------------
-     - uses: ZedThree/clang-tidy-action@v3
-       with:
-         github_token: ${{ secrets.GITHUB_TOKEN }}
-         config_file: .clang-tidy
-         style: file
-
-########################################################################
-# 3) CODE SCANNING (GitHub CodeQL, build‑less C/C++) – catches CWEs early
-########################################################################
- codeql:
-   name: CodeQL static scan
-   runs-on: ubuntu-latest
-   timeout-minutes: 45
-   permissions:
-     security-events: write
-   steps:
-     - uses: github/codeql-action/init@v3
-       with:
-         languages: cpp
-         tools: latest
-         # June 2025 – GitHub supports “build‑free” C/C++ analysis in preview 
-         queries: +security-extended
-
-     - uses: github/codeql-action/analyze@v3
-
-########################################################################
-# 4) WORKFLOW LINT  – keep CI itself healthy
-########################################################################
- workflow-lint:
-   name: actionlint
-   runs-on: ubuntu-latest
-   steps:
-     - uses: actions/checkout@v4
-     - uses: rhysd/actionlint@v1.6.25
+  ########################################################################
+  # 4) WORKFLOW LINT – keep CI itself healthy
+  ########################################################################
+  workflow-lint:
+    name: actionlint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run actionlint
+        run: docker run --rm -v "$PWD:/repo" --workdir /repo rhysd/actionlint:1.7.7 -color
