@@ -53,7 +53,6 @@ idf_component_register(
         "apps/system/api"
         "apps/system/sub_threads"
         "apps/node/sub_threads/ws2812"
-        "apps/node/sub_threads/canopen_host"
         "apps/node/canopen"
         "utils"
 )
