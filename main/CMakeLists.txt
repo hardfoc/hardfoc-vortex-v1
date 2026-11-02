@@ -17,9 +17,6 @@ set(MAIN_SRCS
     "apps/system/api/VortexSystemStateMachine.cpp"
     "apps/system/sub_threads/VortexSystemThread.cpp"
     "apps/node/sub_threads/ws2812/WS2812TestThread.cpp"
-    "apps/node/sub_threads/canopen_bldc/CANOpenBLDCThread.cpp"
-    "apps/node/sub_threads/canopen_bldc/EnhancedCANOpenUtils.cpp"
-    "apps/node/sub_threads/canopen_host/CanOpenHostServiceThread.cpp"
 )
 if(CONFIG_VORTEX_APP_CAN_BOOT_CANOPEN_SLAVE)
     list(APPEND MAIN_SRCS "apps/node/canopen/CanopenSlaveRuntime.cpp")
@@ -40,7 +37,6 @@ idf_component_register(
         esp_adc
         log
         hf-hal-vortex-v1
-        hf-ws2812-rmt-driver
     PRIV_REQUIRES
         spi_flash
         nvs_flash
@@ -49,21 +45,14 @@ idf_component_register(
         soc
         esp_hw_support
         esp_rom
-        esp_netif
-        esp_event
-        esp_wifi
         esp_pm
         app_update
-        esp_http_client
-        esp_https_ota
     INCLUDE_DIRS
         "."
         "apps/supervisor"
         "apps/system/api"
         "apps/system/sub_threads"
         "apps/node/sub_threads/ws2812"
-        "apps/node/sub_threads/canopen_bldc"
-        "apps/node/sub_threads/canopen_host"
         "apps/node/canopen"
         "utils"
 )

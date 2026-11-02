@@ -20,14 +20,14 @@ if(NOT EXISTS "${HF_HAL_VORTEX_DIR}/CMakeLists.txt")
         "Expected layout: hal/hf-hal-vortex-v1/ (see .gitmodules).")
 endif()
 
-# Core ships many optional ESP-IDF components from this single directory.
-set(HF_CORE_DRIVER_EXT "${HF_HAL_VORTEX_DIR}/lib/core/hf-core-drivers/external")
+# The HAL is the only component the app adds; it builds hf-core and the
+# drivers itself. Listing the driver folders here made IDF load each
+# driver's standalone CMakeLists.txt as a component.
+list(APPEND EXTRA_COMPONENT_DIRS "${HF_HAL_VORTEX_DIR}")
 
-list(APPEND EXTRA_COMPONENT_DIRS
-    "${HF_HAL_VORTEX_DIR}"
-    "${HF_CORE_DRIVER_EXT}"
-    "${HF_CORE_DRIVER_EXT}/hf-ws2812-rmt-driver"
-)
+# HAL-owned project-level setup (component exclusions). Must come before
+# project.cmake, which resolves the component graph.
+include("${HF_HAL_VORTEX_DIR}/cmake/vortex_project_setup.cmake")
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 
