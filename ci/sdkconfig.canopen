@@ -2,3 +2,5 @@
 CONFIG_HARDFOC_HAL_CANOPENNODE_SLAVE=y
 CONFIG_VORTEX_APP_CAN_BOOT_CANOPEN_SLAVE=y
 # CONFIG_VORTEX_APP_CAN_BOOT_NONE is not set
+# Same 1 kHz tick as sdkconfig, stated here too so this leg never builds at another rate.
+CONFIG_FREERTOS_HZ=1000

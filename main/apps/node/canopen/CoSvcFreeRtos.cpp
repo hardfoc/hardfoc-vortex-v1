@@ -75,7 +75,7 @@ static void CoSvcTask(void* arg) {
     }
     TickType_t ticks = pdMS_TO_TICKS((next_us + 999U) / 1000U);
     if (ticks == 0) {
-      ticks = 1;  // never spin: with a 100 Hz tick a 1 ms wait would be 0 ticks
+      ticks = 1;  // never spin: a wait shorter than one tick would be 0 ticks
     }
     (void)ulTaskNotifyTake(pdTRUE, ticks);
   }
@@ -105,8 +105,11 @@ void CoSvc::Stop() noexcept {
     return;
   }
   Wake(impl_);
-  for (int i = 0; i < 500 && !impl_->finished.load(); ++i) {
-    vTaskDelay(1);
+  // Give the task up to 5 s to leave its loop, whatever the tick rate.
+  constexpr int kStopPollMs = 10;
+  constexpr int kStopBudgetMs = 5000;
+  for (int waited = 0; waited < kStopBudgetMs && !impl_->finished.load(); waited += kStopPollMs) {
+    vTaskDelay(pdMS_TO_TICKS(kStopPollMs));
   }
   node_.SetWake(nullptr, nullptr);
 }
