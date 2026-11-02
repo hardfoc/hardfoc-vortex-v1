@@ -78,7 +78,7 @@ Key decisions:
 | RX path | `CanopenSlaveRuntime` polls `BaseCan::ReceiveMessage(m, 0)`. `EspCan::ReceiveMessage` unconditionally returns `CAN_ERR_UNSUPPORTED_OPERATION`. **The slave never receives a frame.** The same applies to `CANOpenBLDCThread` (via `CanOpenBaseCanLink::Read`) | `hardfoc-vortex-v1/main/apps/node/canopen/CanopenSlaveRuntime.cpp:75`; `hf-internal-interface-wrap/src/mcu/esp32/EspCan.cpp:282-294`; `CANOpenBLDCThread.cpp:114` |
 | EspCan RX | The RX callback runs in ISR context (`twai_node_receive_from_isr`) and calls the user callback from the ISR. Its conversion error path calls `ESP_LOGE` in ISR context | `EspCan.cpp:766-800,952-963` |
 | EspCan TX | Adds `vTaskDelay(pdMS_TO_TICKS(1))` after **every** successful transmit ("prevent driver overload") | `EspCan.cpp:262-266` |
-| Tick rate | `CONFIG_FREERTOS_HZ=100`, so `pdMS_TO_TICKS(1) == 0`. The slave task loop (`vTaskDelay(pdMS_TO_TICKS(1))`, priority 5) is a busy yield that starves the idle task. `CONFIG_ESP_TASK_WDT_CHECK_IDLE_TASK_CPU0=y` with a 5 s timeout, so a TWDT trip is likely. (Inferred from config, not bench-verified.) | `hardfoc-vortex-v1/sdkconfig:1077,1120`; `CanopenSlaveRuntime.cpp:98` |
+| Tick rate (fixed: now `CONFIG_FREERTOS_HZ=1000`, step 1 of §10.2) | `CONFIG_FREERTOS_HZ=100`, so `pdMS_TO_TICKS(1) == 0`. The slave task loop (`vTaskDelay(pdMS_TO_TICKS(1))`, priority 5) is a busy yield that starves the idle task. `CONFIG_ESP_TASK_WDT_CHECK_IDLE_TASK_CPU0=y` with a 5 s timeout, so a TWDT trip is likely. (Inferred from config, not bench-verified.) | `hardfoc-vortex-v1/sdkconfig:1077,1120`; `CanopenSlaveRuntime.cpp:98` |
 | Bit rate | 500 kbit/s hard-coded in two places | `CommChannelsManager.cpp:282`; `CanopenSlaveRuntime.cpp:117` |
 | Build break | `VortexSystemThread.cpp` includes `VortexCanHostThread.h` unconditionally, and that file does not exist in any repository | `apps/system/sub_threads/VortexSystemThread.cpp:2`; `find` over all clones |
 | `BaseCan` FD | `hf_can_message_t` has FD flags (`is_canfd`, `is_brs`, `is_esi`, `canfd_dlc`) but `data[8]`. `SetDLC()` accepts 64 for FD frames. That is a latent buffer overrun, because the struct only *pretends* to model FD | `hf-internal-interface-wrap/inc/base/BaseCan.h:165-235` |
@@ -235,7 +235,7 @@ The C++ side has no 8-byte assumptions. `CO_CANrxMsg_t` and `CO_CANtx_t` in the 
 
 ### 4.4 Threads, priorities and timing on the single-core C6
 
-Platform facts: ESP32-C6, one HP RISC-V core at 160 MHz (`CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ=160`). ESP-IDF built-in priorities are Wi-Fi 23, esp_timer 22, event loop 20 and lwIP 18. Espressif reserves 24 for very short timing-critical bursts and advises that network-using tasks run below 18 ([IDF speed guide](https://docs.espressif.com/projects/esp-idf/en/stable/esp32c6/api-guides/performance/speed.html)). Prerequisite: set `CONFIG_FREERTOS_HZ=1000`.
+Platform facts: ESP32-C6, one HP RISC-V core at 160 MHz (`CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ=160`). ESP-IDF built-in priorities are Wi-Fi 23, esp_timer 22, event loop 20 and lwIP 18. Espressif reserves 24 for very short timing-critical bursts and advises that network-using tasks run below 18 ([IDF speed guide](https://docs.espressif.com/projects/esp-idf/en/stable/esp32c6/api-guides/performance/speed.html)). Prerequisite: `CONFIG_FREERTOS_HZ=1000` (set; bench soak still needed).
 
 | Thread / context | Prio | Trigger / period | Owns | Budget | Liveness |
 |---|---|---|---|---|---|
@@ -777,7 +777,7 @@ Contracts get C++ unit tests (GoogleTest, as in `pw-controller-sw/tests/host`): 
 
 | # | PR (repo) | Content | Acceptance criteria |
 |---|---|---|---|
-| 1 | Fix build + tick (hardfoc-vortex-v1) | Remove the `VortexCanHostThread` include/members, `FREERTOS_HZ=1000`, CI builds every Kconfig CAN choice | CI green for all configs. No TWDT trip with the slave option in a 10 min soak (bench) |
+| 1 | Fix build + tick (hardfoc-vortex-v1) — **done** except the bench soak | Remove the `VortexCanHostThread` include/members, `FREERTOS_HZ=1000`, CI builds every Kconfig CAN choice | CI green for all configs (done). No TWDT trip with the slave option in a 10 min soak (bench, **still needed**) |
 | 2 | `BaseCan` v2 + EspCan fixes (hf-internal-interface-wrap) | FD-sized frame, `SetDLC` guard, RX ring + working `ReceiveMessage`, no ISR logging, non-blocking send, drop the 1 ms delay | unit test for the frame type; ESP loopback example sends 5000 frames/s without loss |
 | 3 | Contracts package (hardfoc-vortex-v1 `contracts/`) | `CanFrame`, `PortCaps`, CiA 402 rule table, fault policy table, router policy, TLV codec + GoogleTest host build in CI | 100 % transition-table coverage. CI job `contracts-host` |
 | 4 | OD source + generator (hardfoc-vortex-v1 `od/`, `tools/odgen`) | YAML for §5 (initially 301 + 402 core + 0x2000/0x4200), OD.c/h, EDS, ids, docs, `--check` | `od-drift` job. python-canopen loads the EDS. CANopenEditor cross-check passes |

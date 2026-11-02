@@ -31,7 +31,7 @@ The repository commits a full `sdkconfig`. The values the firmware depends on:
 | --- | --- | --- |
 | `CONFIG_IDF_TARGET` | `esp32c6` | The only target |
 | `CONFIG_FREERTOS_UNICORE` | `y` | One core for every task |
-| `CONFIG_FREERTOS_HZ` | 100 | 10 ms tick; see [Threads](threads.md) |
+| `CONFIG_FREERTOS_HZ` | 1000 | 1 ms tick; hf-utils-rtos-wrap and `pdMS_TO_TICKS` delays resolve to 1 ms. Also set in `ci/sdkconfig.canopen`; see [Threads](threads.md) |
 | `CONFIG_ESP_MAIN_TASK_STACK_SIZE` | 3584 | Stack of the supervisor loop |
 | `CONFIG_ESP_TASK_WDT_TIMEOUT_S` | 5 | Task watchdog, idle task checked |
 | `CONFIG_ESP_CONSOLE_UART_BAUDRATE` | 115200 | Console on UART0, USB Serial/JTAG secondary |
