@@ -1,0 +1,4 @@
+# CANopen device build (CI leg "canopen" of build-and-analyze.yml), applied on top of sdkconfig.
+CONFIG_HARDFOC_HAL_CANOPENNODE_SLAVE=y
+CONFIG_VORTEX_APP_CAN_BOOT_CANOPEN_SLAVE=y
+# CONFIG_VORTEX_APP_CAN_BOOT_NONE is not set

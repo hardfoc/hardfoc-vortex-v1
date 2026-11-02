@@ -78,12 +78,69 @@ jobs:
         run: python -m pytest -q tools/odgen/tests
 
   ########################################################################
+  # The CANopen node on the host (design §9.4): vortex_node_host (same
+  # CoNode, OD.c and CANopenNode as the firmware, ASan + UBSan) against
+  # the python-canopen suites in tests/node. The suites run on the pipe
+  # bus (hf-core PipeHub, frame-record codec) every time, and again on
+  # vcan0 when the runner can load the vcan module.
+  ########################################################################
+  node-host:
+    name: node-host
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      # hf-core (driver, ports, CMake lists) and CANopenNode only.
+      - name: Checkout hf-core and CANopenNode
+        run: |
+          git submodule update --init hal/hf-hal-vortex-v1
+          git -C hal/hf-hal-vortex-v1 submodule update --init lib/core third_party/CANopenNode
+
+      - name: Install Ninja
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ninja-build
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install suite requirements
+        run: python -m pip install -r tests/node/requirements.txt
+
+      - name: Build vortex_node_host
+        run: |
+          cmake -S host/node -B build/node-host -G Ninja -DVORTEX_NODE_SANITIZE=ON
+          cmake --build build/node-host
+
+      - name: Try vcan0
+        id: vcan
+        run: |
+          if sudo modprobe vcan 2>/dev/null && sudo ip link add dev vcan0 type vcan && sudo ip link set up vcan0; then
+            echo "available=1" >> "$GITHUB_OUTPUT"
+            echo "vcan0 is up"
+          else
+            echo "available=0" >> "$GITHUB_OUTPUT"
+            echo "vcan is not available on this runner; the suites run on the pipe bus only"
+          fi
+
+      - name: Suites on the pipe bus
+        env:
+          VORTEX_BUS: pipe
+        run: python -m pytest tests/node -v
+
+      - name: Suites on vcan0
+        if: steps.vcan.outputs.available == '1'
+        env:
+          VORTEX_BUS: vcan0
+        run: python -m pytest tests/node -v
+
+  ########################################################################
   # Single required check: green only when every job above is green.
   ########################################################################
   ci-gate:
     name: CI gate
     runs-on: ubuntu-latest
-    needs: [contracts-host, od-drift]
+    needs: [contracts-host, od-drift, node-host]
     if: always()
     steps:
       - name: Check job results
