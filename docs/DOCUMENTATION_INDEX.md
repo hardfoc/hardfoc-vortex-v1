@@ -25,6 +25,7 @@ The ESP-IDF `main` component is documented end-to-end here:
 
 | Document / path | Contents |
 |-----------------|----------|
+| [od-reference.md](od-reference.md) | Object dictionary reference, produced from [`od/vortex_od.yaml`](../od/vortex_od.yaml) by `python3 tools/odgen` |
 | [canopen-and-motor-path.md](canopen-and-motor-path.md) | `hf-utils-canopen` vs CiA301/DS402, `BaseCan` transport, TMC9660 vs CAN path |
 | [helpers/usb_can/README.md](helpers/usb_can/README.md) | Python + USB-CAN scripts (`ds402_host_test.py`, offline frame tests) |
 

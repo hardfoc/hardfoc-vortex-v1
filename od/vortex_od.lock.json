@@ -1,0 +1,6 @@
+{
+  "comment": "OD hash recorded per device.revision; odgen --check fails when the dictionary changes without a revision bump.",
+  "revisions": {
+    "1.0": "0xFF85661C"
+  }
+}

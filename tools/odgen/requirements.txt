@@ -1,0 +1,5 @@
+# odgen runtime
+PyYAML>=6.0
+# tests
+pytest>=8.0
+canopen>=2.3
