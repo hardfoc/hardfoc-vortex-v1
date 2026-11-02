@@ -212,28 +212,28 @@ void DemonstrateAdc(Vortex& vortex) {
     // Read TMC9660 ADC channels
     float voltage;
     
-    if (adc.ReadChannelV("ADC_TMC9660_AIN0", voltage) == hf_adc_err_t::ADC_SUCCESS) {
+    if (adc.ReadVoltage("ADC_TMC9660_AIN0", voltage) == hf_adc_err_t::ADC_SUCCESS) {
         logger.Info(TAG, LogColor::MAGENTA, LogStyle::NORMAL, "✓ TMC9660 AIN0: %.3f V", voltage);
     } else {
         logger.Warn(TAG, LogColor::YELLOW, LogStyle::NORMAL, "✗ TMC9660 AIN0 read failed");
     }
     
-    if (adc.ReadChannelV("ADC_TMC9660_AIN3", voltage) == hf_adc_err_t::ADC_SUCCESS) {
+    if (adc.ReadVoltage("ADC_TMC9660_AIN3", voltage) == hf_adc_err_t::ADC_SUCCESS) {
         logger.Info(TAG, LogColor::MAGENTA, LogStyle::NORMAL, "✓ TMC9660 AIN3 (Temp): %.3f V", voltage);
     } else {
         logger.Warn(TAG, LogColor::YELLOW, LogStyle::NORMAL, "✗ TMC9660 AIN3 read failed");
     }
     
     // Read TMC9660 internal monitoring channels
-    if (adc.ReadChannelV("TMC9660_CURRENT_I0", voltage) == hf_adc_err_t::ADC_SUCCESS) {
+    if (adc.ReadVoltage("TMC9660_CURRENT_I0", voltage) == hf_adc_err_t::ADC_SUCCESS) {
         logger.Info(TAG, LogColor::BRIGHT_YELLOW, LogStyle::NORMAL, "✓ TMC9660 Current I0: %.3f A", voltage);
     }
     
-    if (adc.ReadChannelV("TMC9660_CHIP_TEMPERATURE", voltage) == hf_adc_err_t::ADC_SUCCESS) {
+    if (adc.ReadVoltage("TMC9660_CHIP_TEMPERATURE", voltage) == hf_adc_err_t::ADC_SUCCESS) {
         logger.Info(TAG, LogColor::BRIGHT_RED, LogStyle::NORMAL, "✓ TMC9660 Chip Temp: %.1f°C", voltage);
     }
     
-    if (adc.ReadChannelV("TMC9660_SUPPLY_VOLTAGE", voltage) == hf_adc_err_t::ADC_SUCCESS) {
+    if (adc.ReadVoltage("TMC9660_SUPPLY_VOLTAGE", voltage) == hf_adc_err_t::ADC_SUCCESS) {
         logger.Info(TAG, LogColor::BRIGHT_CYAN, LogStyle::NORMAL, "✓ TMC9660 Supply: %.3f V", voltage);
     }
     
@@ -391,7 +391,7 @@ void DemonstrateTemperature(Vortex& vortex) {
     float temperature;
     
     // Read ESP32 internal temperature
-    if (temp.ReadTemperatureCelsius("ESP32_INTERNAL", temperature) == hf_temp_err_t::HF_TEMP_SUCCESS) {
+    if (temp.ReadTemperatureCelsius("ESP32_INTERNAL", temperature) == hf_temp_err_t::TEMP_SUCCESS) {
         LogColor temp_color = (temperature > 60.0f) ? LogColor::BRIGHT_RED : 
                              (temperature > 40.0f) ? LogColor::YELLOW : LogColor::CYAN;
         logger.Info(TAG, temp_color, LogStyle::NORMAL, "✓ ESP32 Internal: %.2f°C", temperature);
@@ -400,7 +400,7 @@ void DemonstrateTemperature(Vortex& vortex) {
     }
     
     // Read motor temperature
-    if (temp.ReadTemperatureCelsius("MOTOR_TEMP", temperature) == hf_temp_err_t::HF_TEMP_SUCCESS) {
+    if (temp.ReadTemperatureCelsius("MOTOR_TEMP", temperature) == hf_temp_err_t::TEMP_SUCCESS) {
         LogColor temp_color = (temperature > 80.0f) ? LogColor::BRIGHT_RED : 
                              (temperature > 60.0f) ? LogColor::YELLOW : LogColor::GREEN;
         logger.Info(TAG, temp_color, LogStyle::NORMAL, "✓ Motor Temperature: %.2f°C", temperature);
@@ -409,7 +409,7 @@ void DemonstrateTemperature(Vortex& vortex) {
     }
     
     // Read NTC thermistor
-    if (temp.ReadTemperatureCelsius("NTC_THERMISTOR", temperature) == hf_temp_err_t::HF_TEMP_SUCCESS) {
+    if (temp.ReadTemperatureCelsius("NTC_THERMISTOR", temperature) == hf_temp_err_t::TEMP_SUCCESS) {
         LogColor temp_color = (temperature > 70.0f) ? LogColor::BRIGHT_RED : 
                              (temperature > 50.0f) ? LogColor::YELLOW : LogColor::MAGENTA;
         logger.Info(TAG, temp_color, LogStyle::NORMAL, "✓ NTC Thermistor: %.2f°C", temperature);
@@ -431,7 +431,7 @@ static void MonitorWorkerThreads(vortex_app::VortexSystemThread& orch) {
 }
 
 void RunVortexSupervisorLoop(Vortex& vortex, vortex_app::VortexSystemThread& orch) {
-  const std::string banner =
+  const char* banner =
       "========================================\n"
       "  HardFOC Vortex V1 - Unified API Demo\n"
       "========================================";
@@ -455,7 +455,7 @@ void RunVortexSupervisorLoop(Vortex& vortex, vortex_app::VortexSystemThread& orc
 
   vortex.leds.SetStatus(LedAnimation::STATUS_OK);
 
-  logger.Info(TAG, LogColor::BRIGHT_MAGENTA, LogStyle::BOLD, "System Version: %s", vortex.GetSystemVersion().c_str());
+  logger.Info(TAG, LogColor::BRIGHT_MAGENTA, LogStyle::BOLD, "System Version: %s", vortex.GetSystemVersion());
   logger.Info(TAG, LogColor::BRIGHT_CYAN, LogStyle::BOLD, "Entering supervisor loop (main task)...");
 
   while (true) {
