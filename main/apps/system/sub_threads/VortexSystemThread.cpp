@@ -1,7 +1,5 @@
 #include "VortexSystemThread.h"
 
-#include "CANOpenBLDCThread.h"
-#include "VortexCanHostThread.h"
 #if CONFIG_VORTEX_APP_CAN_BOOT_CANOPEN_SLAVE
 #include "CanopenSlaveRuntime.hpp"
 #endif
@@ -20,7 +18,6 @@ namespace {
 
 static const char* TAG = "VortexSys";
 
-constexpr uint8_t kDefaultMotorNodeId = 1U;
 
 bool SetupVortexHal(VortexSystemStateMachine& sm) noexcept {
   (void)sm.TryTransition(VortexSystemState::HalInit, VortexChangeReason::Init);
@@ -65,28 +62,12 @@ bool SetupCanWorker(VortexSystemStateMachine& sm) noexcept {
   Logger::GetInstance().Info(TAG, "CAN worker disabled (menuconfig: none)");
   return true;
 #else
-  auto& orch = VortexSystemThread::GetInstance();
   BaseCan* pcan = CommChannelsManager::GetInstance().GetCanOpenBus();
   if (!pcan) {
     Logger::GetInstance().Warn(TAG, "CAN bus unavailable (skip CAN worker)");
     return false;
   }
-#if CONFIG_VORTEX_APP_CAN_BOOT_VORTEX_HOST
-  orch.MutableVortexCanHost() = std::make_unique<VortexCanHostThread>(kDefaultMotorNodeId, *pcan);
-  if (!orch.MutableVortexCanHost()->EnsureInitialized()) {
-    Logger::GetInstance().Warn(TAG, "VortexCanHost EnsureInitialized failed");
-    orch.MutableVortexCanHost().reset();
-    return false;
-  }
-  if (!orch.MutableVortexCanHost()->Start()) {
-    Logger::GetInstance().Warn(TAG, "VortexCanHost Start failed");
-    orch.MutableVortexCanHost().reset();
-    return false;
-  }
-  Logger::GetInstance().Info(TAG, "VortexCanHost thread running (node %u)",
-                             static_cast<unsigned>(kDefaultMotorNodeId));
-  return true;
-#elif CONFIG_VORTEX_APP_CAN_BOOT_CANOPEN_SLAVE
+#if CONFIG_VORTEX_APP_CAN_BOOT_CANOPEN_SLAVE
   if (!StartCanopenSlaveRuntime(*pcan)) {
     Logger::GetInstance().Warn(TAG, "CANopenNode slave runtime failed to start");
     return false;
@@ -95,39 +76,15 @@ bool SetupCanWorker(VortexSystemStateMachine& sm) noexcept {
                              static_cast<unsigned>(CONFIG_VORTEX_CANOPEN_NODE_ID));
   return true;
 #else
-  orch.MutableCanOpenBldc() = std::make_unique<CANOpenBLDCThread>(kDefaultMotorNodeId, *pcan);
-  if (!orch.MutableCanOpenBldc()->EnsureInitialized()) {
-    Logger::GetInstance().Warn(TAG, "CANOpen BLDC EnsureInitialized failed");
-    orch.MutableCanOpenBldc().reset();
-    return false;
-  }
-  if (!orch.MutableCanOpenBldc()->Start()) {
-    Logger::GetInstance().Warn(TAG, "CANOpen BLDC Start failed");
-    orch.MutableCanOpenBldc().reset();
-    return false;
-  }
-  Logger::GetInstance().Info(TAG, "CANOpen BLDC thread running (node %u)", static_cast<unsigned>(kDefaultMotorNodeId));
+  (void)pcan;
   return true;
 #endif
 #endif
 }
 
 bool TeardownCanWorker(VortexSystemStateMachine&) noexcept {
-  auto& orch = VortexSystemThread::GetInstance();
-#if CONFIG_VORTEX_APP_CAN_BOOT_VORTEX_HOST
-  if (orch.MutableVortexCanHost()) {
-    (void)orch.MutableVortexCanHost()->Stop();
-    orch.MutableVortexCanHost().reset();
-  }
-#elif CONFIG_VORTEX_APP_CAN_BOOT_CANOPEN_SLAVE
+#if CONFIG_VORTEX_APP_CAN_BOOT_CANOPEN_SLAVE
   StopCanopenSlaveRuntime();
-#elif CONFIG_VORTEX_APP_CAN_BOOT_NONE
-  (void)orch;
-#else
-  if (orch.MutableCanOpenBldc()) {
-    (void)orch.MutableCanOpenBldc()->Stop();
-    orch.MutableCanOpenBldc().reset();
-  }
 #endif
   return true;
 }
@@ -197,22 +154,7 @@ bool VortexSystemThread::Setup() noexcept {
 uint32_t VortexSystemThread::Step() noexcept {
   ++tick_;
   if ((tick_ % 600U) == 0U) {
-#if CONFIG_VORTEX_APP_CAN_BOOT_VORTEX_HOST
-    auto* vh = vortex_can_host_.get();
-    if (vh && vh->IsThreadRunning()) {
-      Logger::GetInstance().Info(TAG, "VortexCanHost: rx_frames_total=%lu",
-                                 static_cast<unsigned long>(vh->rxFramesTotal()));
-    }
-#endif
-#if CONFIG_VORTEX_APP_CAN_BOOT_BLDC
-    auto* co = canopen_bldc_.get();
-    if (co && co->IsThreadRunning()) {
-      const auto st = co->GetMotorStatus();
-      Logger::GetInstance().Info(
-          TAG, "CANOpen: present=%s enabled=%s pos=%d vel=%d", st.nodePresent ? "yes" : "no",
-          st.isEnabled ? "yes" : "no", static_cast<int>(st.actualPosition), static_cast<int>(st.actualVelocity));
-    }
-#endif
+    // Periodic node status logging returns with the CANopen device (design step 6).
   }
   return kDispatchPeriodMs;
 }
