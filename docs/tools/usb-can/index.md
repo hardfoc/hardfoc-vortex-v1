@@ -1,64 +1,48 @@
-# USB-CAN helpers (host PC)
+# USB-CAN tools
 
-Small **Python 3** utilities to exercise **CANopen CiA 301 / DS402-style** frames on a **USB-to-CAN** adapter. They mirror the frame layout used in **`hf-utils-canopen`** (`hal/hf-hal-vortex-v1/lib/core/hf-core-utils/hf-utils-canopen`) so you can:
+Python scripts that send CANopen NMT and expedited SDO frames from a PC through a USB-CAN adapter, for bench checks.
 
-- Validate encoding **without hardware** (`test_frame_encoding.py`).
-- **Probe / command** a drive on the bus (`ds402_host_test.py`) with the same bitrate as the Vortex board (typically **500 kbit/s**).
+The scripts build frames by hand with python-can, with the same COB-IDs as hf-core's `hf-utils-canopen`
+(`canopen_frames.py`): NMT `0x000`, SDO request `0x600 + node`, SDO response `0x580 + node`. They are not part of
+the firmware build. The [CANopen node design](../../design/canopen-node.md#92-python-package-vortex-canopen) plans
+to replace them with the `vortex-canopen` package, which reads the generated EDS.
 
-These scripts are **not** part of the ESP-IDF build; they live under **`docs/helpers/`** to mark them as optional host tooling.
+!!! danger "A valid sequence moves a drive"
+    `ds402_velocity_demo` walks a CiA 402 drive to Operation Enabled. Use a current-limited supply, no load and a
+    known node ID.
 
 ## Install
 
 ```bash
-cd docs/helpers/usb_can
-python -m venv .venv
-.venv\Scripts\activate   # Windows
-# source .venv/bin/activate  # Linux/macOS
-pip install -r requirements.txt
+cd docs/tools/usb-can
+python3 -m venv .venv && . .venv/bin/activate     # Windows: .venv\Scripts\activate
+python3 -m pip install -r requirements.txt
 ```
 
-## Hardware / drivers
+`requirements.txt` installs python-can. The adapter needs a [python-can interface](https://python-can.readthedocs.io/en/stable/interfaces.html):
+`socketcan` on Linux (`--channel can0`); `slcan`, `pcan` or `usb2can` on Windows, depending on the adapter.
 
-You need a **`python-can`** backend for your adapter, for example:
+## Scripts
 
-| OS | Common backend | Notes |
-|----|----------------|--------|
-| Linux | `socketcan` | `channel=can0` |
-| Windows | `slcan`, `pcan`, `usb2can`, … | Depends on manufacturer DLL / COM bridge |
+| Script | What it does |
+| --- | --- |
+| `test_frame_encoding.py` | Checks the frame builders offline; no adapter needed |
+| `ds402_host_test.py --action nmt_start` | Sends NMT Start to the node |
+| `ds402_host_test.py --action read_status` | Reads the statusword `0x6041` by SDO (the default action) |
+| `ds402_host_test.py --action ds402_velocity_demo` | NMT Start, the CiA 402 enable sequence (`0x6040` = 6, 7, 15), profile velocity mode and a target velocity of 100 |
 
-See [python-can bus interfaces](https://python-can.readthedocs.io/en/stable/interfaces.html).
-
-## Usage examples
-
-**Offline tests (no adapter):**
+| Option | Default | Meaning |
+| --- | --- | --- |
+| `--interface` | `socketcan` | python-can interface name |
+| `--channel` | `can0` | Interface channel, for example `COM5` for slcan |
+| `--bitrate` | `500000` | Nominal bit rate; the firmware uses 500 kbit/s |
+| `--node-id` | `1` | Target node; the firmware default is 1 |
+| `--timeout` | `0.5` | Seconds to wait for each SDO reply |
 
 ```bash
-python test_frame_encoding.py
+python3 test_frame_encoding.py
+python3 ds402_host_test.py --interface socketcan --channel can0 --node-id 1 --action read_status
 ```
 
-**Live bus (SocketCAN example):**
-
-```bash
-python ds402_host_test.py --interface socketcan --channel can0 --bitrate 500000 --node-id 1 --action nmt_start
-python ds402_host_test.py --interface socketcan --channel can0 --bitrate 500000 --node-id 1 --action read_status
-```
-
-**Windows SLCAN (example COM port):**
-
-```bash
-python ds402_host_test.py --interface slcan --channel COM5 --bitrate 500000 --node-id 1 --action read_status
-```
-
-(`--bitrate` may be ignored for some slcan bridges; set your adapter’s terminal baud to match.)
-
-## Safety
-
-Motor drives can **move unexpectedly** when receiving valid NMT/SDO sequences. Use **bench supply**, **no load**, and **known node id** until behavior is verified.
-
-## See also
-
-- [canopen-and-motor-path.md](../../canopen-and-motor-path.md) — architecture and standards coverage
-- Firmware: `main/apps/node/sub_threads/canopen_bldc/CANOpenBLDCThread.cpp`
-- HAL helpers: `hal/hf-hal-vortex-v1/lib/core/hf-core-utils/hf-utils-canopen/`
-
-There is no separate **`hf-vortex-driver`** package in this tree; CANopen + `BaseCan` integration is documented above. If a dedicated driver repo is added later, these scripts can be copied or symlinked into its `examples/` folder.
+With the Vortex slave runtime as it is today, expect no SDO reply: the firmware cannot receive frames yet
+([CANopen](../../canopen.md#what-runs-today)).
