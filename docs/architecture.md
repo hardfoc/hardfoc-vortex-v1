@@ -60,15 +60,14 @@ Adding a step means adding a `Setup*` / `Teardown*` pair and a row to `kInitSequ
 `VortexSystemStateMachine` holds one atomic `VortexSystemState` and the reason of the last change.
 `TryTransition()` stores the new state without a guard table; the states mark milestones for logs.
 
-```mermaid
-stateDiagram-v2
-  [*] --> Boot: Setup() starts
-  Boot --> HalInit: vortex_hal step
-  HalInit --> ThreadsUp: can_worker step
-  ThreadsUp --> Ready: every step done
-  HalInit --> Fault: non-recoverable step failed
-  Ready --> Fault: Cleanup()
-```
+| From | To | When |
+| --- | --- | --- |
+| (start) | `Boot` | `Setup()` starts |
+| `Boot` | `HalInit` | the `vortex_hal` step |
+| `HalInit` | `ThreadsUp` | the `can_worker` step |
+| `ThreadsUp` | `Ready` | every step done |
+| `HalInit` | `Fault` | a non-recoverable step failed |
+| `Ready` | `Fault` | `Cleanup()` |
 
 ## Supervisor loop
 
