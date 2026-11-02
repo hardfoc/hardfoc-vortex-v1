@@ -1,0 +1,4 @@
+# vortex_node_host conformance-style suites (tests/node)
+pytest>=8.0
+canopen>=2.3
+python-can>=4.2
