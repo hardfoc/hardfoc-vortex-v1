@@ -278,8 +278,8 @@ void DemonstrateImu(Vortex& vortex) {
     if (handler) {
         logger.Info(TAG, LogColor::YELLOW, LogStyle::NORMAL, "✓ BNO08x handler available");
         
-        // Get underlying driver
-        if (imu.GetSensor(0) != nullptr) {
+        // The driver is reached only through VisitSensor(); it runs the callable when the sensor is up
+        if (imu.VisitSensor(0, [](IBno08xDriverOps&) {})) {
             logger.Info(TAG, LogColor::YELLOW, LogStyle::NORMAL, "✓ BNO08x sensor available");
         } else {
             logger.Warn(TAG, LogColor::YELLOW, LogStyle::NORMAL, "✗ BNO08x sensor not available");

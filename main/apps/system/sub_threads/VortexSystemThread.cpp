@@ -2,6 +2,7 @@
 
 #if CONFIG_VORTEX_APP_CAN_BOOT_CANOPEN_SLAVE
 #include "CanopenDevice.hpp"
+#include "bsp_bind/esp32c6/VortexBoardBindEsp32c6.h"
 #include "mcu/esp32/EspCan.h"
 #endif
 #include "Vortex.h"
@@ -70,7 +71,7 @@ bool SetupCanWorker(VortexSystemStateMachine& sm) noexcept {
   }
 #if CONFIG_VORTEX_APP_CAN_BOOT_CANOPEN_SLAVE
   auto& comms = CommChannelsManager::GetInstance();
-  EspCan* twai = comms.GetEspCan();
+  EspCan* twai = vortex::bsp::esp32c6::CanController();
   if (twai == nullptr || !StartCanopenDevice(*twai, comms.GetCanBitRate())) {
     Logger::GetInstance().Warn(TAG, "CANopen device failed to start");
     return false;
