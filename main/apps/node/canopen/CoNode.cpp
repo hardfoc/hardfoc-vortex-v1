@@ -4,7 +4,6 @@
  */
 #include "CoNode.hpp"
 
-#include <cstring>
 
 extern "C" {
 #include "CANopen.h"
@@ -66,9 +65,9 @@ CoNode::CoNode(const CoNodeConfig& config) noexcept : cfg_(config) {
   pending_bitrate_ = cfg_.bitrate_kbps;
   OdDefaults& d = Defaults();
   if (!d.captured) {
-    std::memcpy(&d.ram, &OD_RAM, sizeof(OD_RAM));
-    std::memcpy(&d.comm, &OD_PERSIST_COMM, sizeof(OD_PERSIST_COMM));
-    std::memcpy(&d.app, &OD_PERSIST_APP, sizeof(OD_PERSIST_APP));
+    d.ram = OD_RAM;
+    d.comm = OD_PERSIST_COMM;
+    d.app = OD_PERSIST_APP;
     d.captured = true;
   }
 }
@@ -244,9 +243,9 @@ bool CoNode::ResetApplication() noexcept {
   }
   const OdDefaults& d = Defaults();
   CO_LOCK_OD(co_->CANmodule);
-  std::memcpy(&OD_RAM, &d.ram, sizeof(OD_RAM));
-  std::memcpy(&OD_PERSIST_COMM, &d.comm, sizeof(OD_PERSIST_COMM));
-  std::memcpy(&OD_PERSIST_APP, &d.app, sizeof(OD_PERSIST_APP));
+  OD_RAM = d.ram;
+  OD_PERSIST_COMM = d.comm;
+  OD_PERSIST_APP = d.app;
   CO_UNLOCK_OD(co_->CANmodule);
   sdo2_node_id_ = 0;
   // A power cycle forgets an LSS ID that was configured but not stored.
