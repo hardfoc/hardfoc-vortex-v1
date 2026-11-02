@@ -58,7 +58,7 @@ bool ParseUint(const char* s, unsigned long max, unsigned long& out) {
 int main(int argc, char** argv) {
   vortex::node::CoNodeConfig cfg;
   std::string port_spec;
-  std::string nvs_path;
+  std::string nvs_request;  // --nvs as given; only ValidateNvsPath() reads it
   for (int i = 1; i < argc; ++i) {
     const std::string a = argv[i];
     unsigned long v = 0;
@@ -75,7 +75,7 @@ int main(int argc, char** argv) {
     } else if (a == "--bitrate" && ParseUint(val, 1000, v)) {
       cfg.bitrate_kbps = static_cast<uint16_t>(v);
     } else if (a == "--nvs") {
-      nvs_path = val;
+      nvs_request = val;
     } else {
       return Usage(argv[0]);
     }
@@ -83,16 +83,17 @@ int main(int argc, char** argv) {
   if (port_spec.empty()) {
     return Usage(argv[0]);
   }
-  if (!nvs_path.empty()) {
-    const auto valid = vortex::sim::ValidateNvsPath(nvs_path);
+  std::string nvs_file;  // the validated path, rebuilt by ValidateNvsPath()
+  if (!nvs_request.empty()) {
+    const auto valid = vortex::sim::ValidateNvsPath(nvs_request);
     if (!valid) {
       std::fprintf(stderr,
                    "vortex_node_host: --nvs %s refused: needs a regular file under the working directory or "
                    "$TMPDIR, without '..'\n",
-                   nvs_path.c_str());
+                   nvs_request.c_str());
       return 2;
     }
-    nvs_path = *valid;
+    nvs_file = *valid;
   }
 
   std::unique_ptr<hf::can::ICanPort> port;
@@ -121,7 +122,7 @@ int main(int argc, char** argv) {
 #endif
   }
 
-  vortex::sim::SimNvs nvs(nvs_path);
+  vortex::sim::SimNvs nvs(nvs_file);
   vortex::sim::SimLssStore lss(nvs);
   vortex::sim::SimAxisPort axis;
 

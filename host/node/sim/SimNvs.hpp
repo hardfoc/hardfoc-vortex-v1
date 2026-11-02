@@ -48,20 +48,24 @@ inline constexpr const char kNvsPathChars[] =
  *         Every output character comes from the constant set, not from @p in.
  */
 inline std::optional<std::string> CopyThroughCharset(const std::string& in, const char* allowed) {
-  std::string out;
-  out.reserve(in.size());
+  // Two passes: positions of the characters in the set (integers), then the
+  // string rebuilt from the set at those positions.
+  std::vector<std::size_t> index;
+  index.reserve(in.size());
   for (const char c : in) {
-    bool found = false;
-    for (const char* a = allowed; *a != '\0'; ++a) {
-      if (*a == c) {
-        out.push_back(*a);
-        found = true;
-        break;
-      }
+    std::size_t i = 0;
+    while (allowed[i] != '\0' && allowed[i] != c) {
+      ++i;
     }
-    if (!found) {
+    if (allowed[i] == '\0') {
       return std::nullopt;
     }
+    index.push_back(i);
+  }
+  std::string out;
+  out.reserve(index.size());
+  for (const std::size_t i : index) {
+    out.push_back(allowed[i]);
   }
   return out;
 }
