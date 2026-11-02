@@ -94,7 +94,7 @@ void retry_pending_tx(CO_CANmodule_t* cm) {
       break;
     }
     buffer->bufferFull = false;
-    cm->CANtxCount--;
+    cm->CANtxCount = static_cast<uint16_t>(cm->CANtxCount - 1U);
     cm->firstCANtxMessage = false;
     cm->bufferInhibitFlag = buffer->syncFlag;
   }
