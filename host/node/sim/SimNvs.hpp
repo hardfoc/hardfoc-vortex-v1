@@ -12,8 +12,11 @@
  *          The file path comes from the command line, so it is validated
  *          before use (ValidateNvsPath): no `..` component, the canonical
  *          path must lie under an allowed base directory (the working
- *          directory or $TMPDIR, /tmp when TMPDIR is unset), and an existing
- *          file must be a regular file. SimNvs only opens validated paths.
+ *          directory or $TMPDIR, /tmp when TMPDIR is unset), the file name
+ *          must match [A-Za-z0-9._-]+, and an existing file must be a
+ *          regular file. The path SimNvs opens is rebuilt character by
+ *          character from fixed character sets (CopyThroughCharset), so no
+ *          byte of the command-line string reaches the open call directly.
  */
 #include <climits>
 #include <cstdint>
@@ -33,6 +36,35 @@
 #include "CoNode.hpp"
 
 namespace vortex::sim {
+
+inline constexpr const char kNvsNameChars[] =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-";
+inline constexpr const char kNvsPathChars[] =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-/+";
+
+/**
+ * @brief Copy @p in using only characters taken from @p allowed.
+ * @return the copy, or nullopt if @p in has a character outside @p allowed.
+ *         Every output character comes from the constant set, not from @p in.
+ */
+inline std::optional<std::string> CopyThroughCharset(const std::string& in, const char* allowed) {
+  std::string out;
+  out.reserve(in.size());
+  for (const char c : in) {
+    bool found = false;
+    for (const char* a = allowed; *a != '\0'; ++a) {
+      if (*a == c) {
+        out.push_back(*a);
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      return std::nullopt;
+    }
+  }
+  return out;
+}
 
 /** @brief realpath() of an existing directory, or nullopt. */
 inline std::optional<std::string> CanonicalDir(const std::string& dir) {
@@ -86,7 +118,8 @@ inline std::optional<std::string> ValidateNvsPath(const std::string& requested,
   const std::size_t slash = requested.rfind('/');
   const std::string name = slash == std::string::npos ? requested : requested.substr(slash + 1);
   const std::string dir = slash == std::string::npos ? "." : (slash == 0 ? "/" : requested.substr(0, slash));
-  if (name.empty() || name == "." ) {
+  const auto safe_name = CopyThroughCharset(name, kNvsNameChars);
+  if (!safe_name || safe_name->empty() || *safe_name == "." || *safe_name == "..") {
     return std::nullopt;
   }
   const auto parent = CanonicalDir(dir);
@@ -104,7 +137,11 @@ inline std::optional<std::string> ValidateNvsPath(const std::string& requested,
   if (!inside) {
     return std::nullopt;
   }
-  const std::string full = (*parent == "/" ? "" : *parent) + "/" + name;
+  const auto full_opt = CopyThroughCharset((*parent == "/" ? "" : *parent) + "/" + *safe_name, kNvsPathChars);
+  if (!full_opt) {
+    return std::nullopt;  // the canonical directory has characters outside the path set
+  }
+  const std::string& full = *full_opt;
   struct stat st {};
   if (lstat(full.c_str(), &st) == 0 && !S_ISREG(st.st_mode)) {
     return std::nullopt;  // directories, symlinks, devices, sockets
