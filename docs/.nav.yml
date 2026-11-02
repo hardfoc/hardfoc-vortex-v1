@@ -1,0 +1,24 @@
+# Site navigation (mkdocs-awesome-nav): the tabs and their pages, in reading order.
+nav:
+  - Home: index.md
+  - Get started:
+      - Getting started: getting-started.md
+      - Hardware: hardware.md
+  - Concepts:
+      - Architecture: architecture.md
+      - Threads: threads.md
+      - Boot and updates: boot-and-ota.md
+      - Safety: safety.md
+      - CANopen: canopen.md
+  - Guides:
+      - Configuration: configuration.md
+      - USB-CAN tools: tools/usb-can/index.md
+      - Troubleshooting: troubleshooting.md
+  - Reference:
+      - Object dictionary: od-reference.md
+      - Testing and CI: testing.md
+      - Design notes:
+          - design/index.md
+          - CANopen node: design/canopen-node.md
+          - Drive observability: design/drive-observability.md
+      - Figures: diagrams/index.md
