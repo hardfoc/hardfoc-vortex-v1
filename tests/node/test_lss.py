@@ -102,3 +102,13 @@ def test_configure_node_id_rejects_invalid_ids(bench):
     finally:
         lss.send_switch_state_global(lss.WAITING_STATE)
     assert bench.node.sdo[0x1000].raw == 0x00020192
+
+
+@pytest.mark.parametrize("path", ["/etc/passwd", "../outside/nvs.txt", "/tmp/../etc/nvs.txt"])
+def test_nvs_path_outside_the_allowed_bases_is_refused(bus_spec, path):
+    import subprocess
+    from conftest import node_binary
+    r = subprocess.run([str(node_binary()), "--node-id", "9", "--port", bus_spec.port_arg, "--nvs", path],
+                       capture_output=True, text=True, timeout=10)
+    assert r.returncode == 2
+    assert "refused" in r.stderr

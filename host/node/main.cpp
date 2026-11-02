@@ -83,6 +83,17 @@ int main(int argc, char** argv) {
   if (port_spec.empty()) {
     return Usage(argv[0]);
   }
+  if (!nvs_path.empty()) {
+    const auto valid = vortex::sim::ValidateNvsPath(nvs_path);
+    if (!valid) {
+      std::fprintf(stderr,
+                   "vortex_node_host: --nvs %s refused: needs a regular file under the working directory or "
+                   "$TMPDIR, without '..'\n",
+                   nvs_path.c_str());
+      return 2;
+    }
+    nvs_path = *valid;
+  }
 
   std::unique_ptr<hf::can::ICanPort> port;
   if (port_spec.rfind("pipe:", 0) == 0) {
