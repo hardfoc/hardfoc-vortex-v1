@@ -14,8 +14,8 @@ committed figure no longer matches the code. Each figure below lists the files i
   <img src="firmware-tasks.svg"
     alt="Task diagram of the Vortex V1 firmware: the ESP-IDF main task runs app_main and then the supervisor
     loop; it starts the VortexSys orchestrator, which starts the LedDemo (WS2812 test) thread and,
-    optionally, the CANopen slave task; all of them use the Vortex HAL, which drives the TMC9660,
-    AS5047U, BNO08x, PCAL95555, the CAN transceiver and the WS2812 LED.">
+    optionally, the CANopen device task (co_svc, serving CoNode); all of them use the Vortex HAL, which
+    drives the TMC9660, AS5047U, BNO08x, PCAL95555, the CAN transceiver and the WS2812 LED.">
 </picture>
 <!-- /figure -->
 
@@ -27,5 +27,6 @@ Drawn from:
 - [`main/apps/system/sub_threads/VortexSystemThread.h`](../../main/apps/system/sub_threads/VortexSystemThread.h)
 - [`main/apps/system/sub_threads/VortexSystemThread.cpp`](../../main/apps/system/sub_threads/VortexSystemThread.cpp)
 - [`main/apps/node/sub_threads/ws2812/WS2812TestThread.h`](../../main/apps/node/sub_threads/ws2812/WS2812TestThread.h)
-- [`main/apps/node/canopen/CanopenSlaveRuntime.cpp`](../../main/apps/node/canopen/CanopenSlaveRuntime.cpp)
+- [`main/apps/node/canopen/CanopenDevice.cpp`](../../main/apps/node/canopen/CanopenDevice.cpp)
+- [`main/apps/node/canopen/CoSvcFreeRtos.cpp`](../../main/apps/node/canopen/CoSvcFreeRtos.cpp)
 - [`main/apps/supervisor/VortexSupervisor.cpp`](../../main/apps/supervisor/VortexSupervisor.cpp)

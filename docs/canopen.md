@@ -1,6 +1,6 @@
 # CANopen
 
-The CANopen side of Vortex V1: what runs on the CAN port today, the object dictionary and how it is generated, and
+The CANopen side of Vortex V1: the CANopen device on the CAN port, the object dictionary and how it is generated, and
 the tools that read it.
 
 Vortex V1 is a CANopen **device** (slave): a CiA 301 node that will carry the CiA 402 drive profile. It is not a
@@ -11,31 +11,44 @@ master for other drives. The [CANopen node design](design/canopen-node.md) is th
 | Piece | State | Where |
 | --- | --- | --- |
 | CANopenNode v4 | Compiled into the HAL only with `CONFIG_HARDFOC_HAL_CANOPENNODE_SLAVE` | HAL `third_party/CANopenNode` |
-| Slave runtime | Started by boot step `can_worker` when menuconfig selects **CANopenNode slave** | `main/apps/node/canopen/CanopenSlaveRuntime.cpp` |
-| Object dictionary in the build | The upstream CANopenNode example (`example/OD.c`), not the Vortex dictionary yet | HAL CMake |
-| Vortex object dictionary | Generated and checked in CI; not linked into the firmware yet | `od/` |
+| CO driver and ports | hf-core's generic driver `CO_driver_hardfoc.c` and the `EspTwaiPort` binding | HAL `lib/core/handlers/common/canopen/` |
+| CANopen device | `CoNode`, served by the `co_svc` task; started by boot step `can_worker` when menuconfig selects **CANopen device** | [`main/apps/node/canopen/CoNode.cpp`](../main/apps/node/canopen/CoNode.cpp), [`CanopenDevice.cpp`](../main/apps/node/canopen/CanopenDevice.cpp) |
+| Object dictionary in the build | The Vortex dictionary generated from `od/vortex_od.yaml` (`HF_CORE_CANOPENNODE_OD_DIR`) | `od/canopennode/` |
+| Stack configuration | SDO block transfer with CRC, configurable EMCY, LSS fastscan, timer-next | [`main/apps/node/canopen/config/hf_co_app_config.h`](../main/apps/node/canopen/config/hf_co_app_config.h) |
+| Host node | The same `CoNode` on SocketCAN or the pipe bus, tested by python-canopen in CI | `host/node`, `tests/node` |
 
-!!! warning "The slave runtime is a bring-up shim"
-    It cannot receive frames on hardware: it polls `BaseCan::ReceiveMessage()`, which the ESP32 CAN wrapper does
-    not implement yet. It does not persist parameters, and its loop never sleeps at the current tick rate
-    ([Threads](threads.md#tasks)). The [design's inventory](design/canopen-node.md#3-what-exists-today-verified)
-    lists every gap with its source line.
+How a frame travels:
+
+- **Receive.** The TWAI RX interrupt hands each frame to a lock-free ring in the CO driver and wakes `co_svc`.
+  `co_svc` dispatches the frame to CANopenNode in task context, through the frame router.
+- **Transmit.** Frames go out with `EspCan::TrySendMessage()`, which never blocks. A full TX queue leaves the frame
+  pending in its CANopenNode buffer, and `CO_CANmodule_process()` sends it again.
+- **Errors.** TEC, REC and bus-off become CANopen EMCY messages, and a bus-off controller gets a recovery request.
+- **Router.** `FrameRouter` applies `contracts/router_policy.hpp`. SDO server 2 (0x1201, virtual COB-IDs
+  0x6C0/0x5C0 + node-ID) is never reachable from the CAN port.
+
+!!! note "Not here yet"
+    Parameter storage (0x1010 / 0x1011) and the NVS LSS record are the next step of the
+    [design](design/canopen-node.md#102-ordered-prs). After that come the CiA 402 axis and `drive_rt`, then the
+    fault funnel. Until then, a reset forgets an LSS-assigned node-ID, and the node runs with a 100 Hz tick
+    ([Threads](threads.md#tasks)).
 
 ### Start sequence
 
-`StartCanopenSlaveRuntime(BaseCan&)` runs, in order:
+`StartCanopenDevice(EspCan&, bit rate)` creates the port, the node and the service task. `CoNode::Start()` then
+runs, in order:
 
 | Step | Call | Values |
 | --- | --- | --- |
-| 1 | `hf_co_driver_register_tx()` | TX goes to `BaseCan::SendMessage()` with a 20 ms timeout; classic frames, 8 bytes at most |
-| 2 | `CO_new()` | Allocates the stack on the heap; logs the bytes used |
-| 3 | `CO_CANinit()` | 500 kbit/s |
-| 4 | `CO_CANopenInit()` | Node ID `CONFIG_VORTEX_CANOPEN_NODE_ID`; first heartbeat 500 ms; SDO server timeout 1000 ms, client 500 ms; NMT starts to Operational |
+| 1 | `CO_new()` | Allocates the stack on the heap |
+| 2 | `CO_CANinit()` | The CO driver instance with the `EspTwaiPort` in the CAN slot; bit rate from `CommChannelsManager::GetCanBitRate()` (500 kbit/s) |
+| 3 | `CO_LSSinit()` | LSS address from 0x1018; pending node-ID and bit rate |
+| 4 | `CO_CANopenInit()` | Node ID `CONFIG_VORTEX_CANOPEN_NODE_ID` (or the LSS-assigned one); first heartbeat 500 ms; SDO server timeout 1000 ms; NMT startup from 0x1F80 (bit 2 = 0, the default, waits for an NMT start) |
 | 5 | `CO_CANopenInitPDO()` | PDOs from the dictionary |
-| 6 | `CO_CANsetNormalMode()`, task `canopen_slave` | 8192-byte stack, priority 5, no core affinity |
+| 6 | `CO_CANsetNormalMode()`, task `co_svc` | 6144-byte stack, priority 17; woken by received frames and by CANopenNode's timer-next, at least one tick per wait |
 
-`CO_ERROR_NODE_ID_UNCONFIGURED_LSS` is accepted in steps 4 and 5, so an unconfigured node can still be set up with
-LSS. The task loop drains received standard frames into CANopenNode, then runs SYNC, RPDO, `CO_process()` and TPDO.
+`CO_ERROR_NODE_ID_UNCONFIGURED_LSS` is accepted in steps 4 and 5, so an unconfigured node (ID 255) can be set up with
+LSS. NMT reset communication repeats steps 2 to 6. NMT reset node restarts the chip.
 
 ## The object dictionary
 
@@ -44,7 +57,7 @@ them and CI fails when one is stale:
 
 | Artefact | Path | Used by |
 | --- | --- | --- |
-| CANopenNode dictionary | `od/canopennode/OD.c`, `OD.h` | the firmware, once the runtime is rebuilt |
+| CANopenNode dictionary | `od/canopennode/OD.c`, `OD.h` | the firmware and the host node |
 | EDS (CiA 306) | `od/vortex_v1.eds`, also packaged in `tools/vortex_canopen` | CANopen masters and tools |
 | C++ identifiers | `contracts/vortex_od_ids.hpp` | contracts and host tests |
 | Python identifiers | `tools/vortex_canopen/vortex_canopen/od_ids.py` | host tools |
@@ -70,7 +83,8 @@ python3 tools/odgen --check    # what CI runs
 
 | Tool | What it is |
 | --- | --- |
-| `tools/vortex_canopen` | Python package with the generated identifiers and the matching EDS (`vortex_canopen.eds_path()`); the base of the planned `vortex-canopen` command line |
+| `tools/vortex_canopen` | Python package with the generated identifiers and the matching EDS (`vortex_canopen.eds_path()`), the frame-record codec and the pipe-bus python-can interface (`vortex_pipe`); the base of the planned `vortex-canopen` command line |
+| `host/node` (`vortex_node_host`) | The CANopen node built for Linux or macOS, on `vcan0` or the pipe bus; see [Testing and CI](testing.md) |
 | [USB-CAN scripts](tools/usb-can/index.md) | Small python-can scripts that build NMT and expedited SDO frames by hand, for bench checks |
 
 Next: [Configuration](configuration.md).

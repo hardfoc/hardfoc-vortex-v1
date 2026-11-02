@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="762" viewBox="0 0 1200 762" role="img" aria-labelledby="firmware-tasks-title firmware-tasks-desc" font-family="Inter, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">
 <title id="firmware-tasks-title">Four tasks over one HAL</title>
-<desc id="firmware-tasks-desc">Task diagram of the Vortex V1 firmware: the ESP-IDF main task runs app_main and then the supervisor loop; it starts the VortexSys orchestrator, which starts the LedDemo (WS2812 test) thread and, optionally, the CANopen slave task; all of them use the Vortex HAL, which drives the TMC9660, AS5047U, BNO08x, PCAL95555, the CAN transceiver and the WS2812 LED.</desc>
+<desc id="firmware-tasks-desc">Task diagram of the Vortex V1 firmware: the ESP-IDF main task runs app_main and then the supervisor loop; it starts the VortexSys orchestrator, which starts the LedDemo (WS2812 test) thread and, optionally, the CANopen device task (co_svc, serving CoNode); all of them use the Vortex HAL, which drives the TMC9660, AS5047U, BNO08x, PCAL95555, the CAN transceiver and the WS2812 LED.</desc>
 <defs><marker id="fk-arrow-rail" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#8893A2"/></marker></defs>
 <rect x="0.5" y="0.5" width="1199" height="761" rx="16" fill="#FFFFFF" stroke="#E2E7EE"/>
 <text x="32" y="46.8" font-size="16" font-weight="700" letter-spacing="1.2" fill="#3730A3">ARCHITECTURE</text>
@@ -33,9 +33,9 @@
 <text x="56" y="346.4" font-size="20" font-weight="700" fill="#17202C">LedDemo</text>
 <text x="56" y="377" font-size="17" fill="#2B3442">WS2812TestThread: LED animations</text>
 <text x="56" y="401.7" font-size="17" fill="#2B3442">4096 B stack, priority 2</text>
-<text x="636" y="346.4" font-size="20" font-weight="700" fill="#17202C">canopen_slave</text>
-<text x="636" y="377" font-size="17" fill="#2B3442">CANopenNode, when menuconfig</text>
-<text x="636" y="401.7" font-size="17" fill="#2B3442">selects it; 8192 B, priority 5</text>
+<text x="636" y="346.4" font-size="20" font-weight="700" fill="#17202C">co_svc</text>
+<text x="636" y="377" font-size="17" fill="#2B3442">CoNode (CANopen device), when</text>
+<text x="636" y="401.7" font-size="17" fill="#2B3442">menuconfig selects it; 6144 B, priority 17</text>
 <text x="56" y="508.4" font-size="20" font-weight="700" fill="#334155">Vortex HAL (hal/hf-hal-vortex-v1)</text>
 <text x="56" y="539" font-size="17" fill="#2B3442">Vortex::GetInstance(): managers, hf-core handlers, chip drivers</text>
 <text x="56" y="645.4" font-size="20" font-weight="700" fill="#17202C">Vortex V1 board</text>

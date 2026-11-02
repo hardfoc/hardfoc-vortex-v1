@@ -11,16 +11,16 @@ compile definitions.
 
 | Option | Values | Default | Effect |
 | --- | --- | --- | --- |
-| `VORTEX_APP_CAN_BOOT_WORKER` (choice) | `VORTEX_APP_CAN_BOOT_CANOPEN_SLAVE`, `VORTEX_APP_CAN_BOOT_NONE` | `NONE` | Which task drains the CANopen bus at boot. **CANopenNode slave** also compiles `CanopenSlaveRuntime.cpp` |
+| `VORTEX_APP_CAN_BOOT_WORKER` (choice) | `VORTEX_APP_CAN_BOOT_CANOPEN_SLAVE`, `VORTEX_APP_CAN_BOOT_NONE` | `NONE` | Which task drains the CANopen bus at boot. **CANopen device** also compiles `CoNode`, `FrameRouter`, `CoSvcFreeRtos` and `CanopenDevice` |
 | `VORTEX_CANOPEN_NODE_ID` | 1 to 127 | 1 | Node ID passed to `CO_CANopenInit()` and `CO_CANopenInitPDO()` |
 
 **HardFOC Vortex HAL** (in the HAL submodule):
 
 | Option | Default | Effect |
 | --- | --- | --- |
-| `HARDFOC_HAL_CANOPENNODE_SLAVE` | off | Compiles CANopenNode into the HAL; the app's CANopenNode slave choice depends on it |
+| `HARDFOC_HAL_CANOPENNODE_SLAVE` | off | Compiles CANopenNode, hf-core's CO driver and `EspTwaiPort` into the HAL, with the Vortex OD; the app's CANopen device choice depends on it |
 
-To try the slave: enable `HARDFOC_HAL_CANOPENNODE_SLAVE`, then pick **CANopenNode slave** under
+To try the CANopen device: enable `HARDFOC_HAL_CANOPENNODE_SLAVE`, then pick **CANopen device** under
 **CAN RX drain worker at boot**, and set the node ID. Read the [CANopen](canopen.md#what-runs-today) limits first.
 
 ## Committed sdkconfig
