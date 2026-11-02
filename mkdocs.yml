@@ -1,0 +1,24 @@
+# Documentation site on the HardFOC MkDocs platform: theme, plugin and toolchain come from the hardfoc-mkdocs-theme
+# package in hardfoc/hf-general-ci-tools. Preview locally:
+#
+#   pip install "git+https://github.com/hardfoc/hf-general-ci-tools@v1\
+#   #subdirectory=packages/hardfoc-mkdocs-theme"      (one line, without the backslash)
+#   mkdocs serve                                     http://127.0.0.1:8000
+#   mkdocs build --strict                            what CI runs
+#   hardfoc-docs figures && hardfoc-docs gen         refresh figures and generated regions
+#
+# Pages: docs/, order: docs/.nav.yml, rules: docs/DOCS-STYLE-GUIDE.md in hf-general-ci-tools.
+# docs/od-reference.md is written by `python3 tools/odgen` from od/vortex_od.yaml; do not edit it by hand.
+site_name: Vortex V1 firmware
+site_description: >-
+  Firmware for the HardFOC Vortex V1 motor controller (ESP32-C6, TMC9660): boot orchestration, supervisor, the
+  CANopen device and its object dictionary.
+repo_url: https://github.com/hardfoc/hardfoc-vortex-v1
+
+theme:
+  name: hardfoc
+
+plugins:
+  - hardfoc
+  - search
+  - awesome-nav
