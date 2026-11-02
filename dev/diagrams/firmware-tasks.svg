@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="762" viewBox="0 0 1200 762" role="img" aria-labelledby="firmware-tasks-title firmware-tasks-desc" font-family="Inter, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">
+<title id="firmware-tasks-title">Four tasks over one HAL</title>
+<desc id="firmware-tasks-desc">Task diagram of the Vortex V1 firmware: the ESP-IDF main task runs app_main and then the supervisor loop; it starts the VortexSys orchestrator, which starts the LedDemo (WS2812 test) thread and, optionally, the CANopen slave task; all of them use the Vortex HAL, which drives the TMC9660, AS5047U, BNO08x, PCAL95555, the CAN transceiver and the WS2812 LED.</desc>
+<defs><marker id="fk-arrow-rail" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#8893A2"/></marker></defs>
+<rect x="0.5" y="0.5" width="1199" height="761" rx="16" fill="#FFFFFF" stroke="#E2E7EE"/>
+<text x="32" y="46.8" font-size="16" font-weight="700" letter-spacing="1.2" fill="#3730A3">ARCHITECTURE</text>
+<text x="32" y="85.6" font-size="32" font-weight="700" fill="#17202C">Four tasks over one HAL</text>
+<text x="32" y="115.4" font-size="18" fill="#566070">main/ starts the tasks; the HAL owns every chip.</text>
+<rect x="32" y="131.4" width="1136" height="1" fill="#E2E7EE"/>
+<path d="M592 206.4 L608 206.4" fill="none" stroke="#8893A2" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#fk-arrow-rail)"/>
+<path d="M778.8 267.4 L778.8 279.4 Q778.8 287.4 770.8 287.4 L318 287.4 Q310 287.4 310 295.4 L310 307.4" fill="none" stroke="#8893A2" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#fk-arrow-rail)"/>
+<path d="M890 267.4 L890 307.4" fill="none" stroke="#8893A2" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#fk-arrow-rail)"/>
+<path d="M310 429.4 L310 441.4 Q310 449.4 318 449.4 L592 449.4 Q600 449.4 600 457.4 L600 469.4" fill="none" stroke="#8893A2" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#fk-arrow-rail)"/>
+<path d="M890 429.4 L890 441.4 Q890 449.4 882 449.4 L608 449.4 Q600 449.4 600 457.4 L600 469.4" fill="none" stroke="#8893A2" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#fk-arrow-rail)"/>
+<path d="M600 566.4 L600 606.4" fill="none" stroke="#8893A2" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#fk-arrow-rail)"/>
+<rect x="32" y="149.4" width="556" height="114" rx="12" fill="#EEF0FF" stroke="#4F46E5" stroke-width="1.4"/>
+<rect x="32" y="157.4" width="4" height="98" rx="2" fill="#4F46E5"/>
+<rect x="612" y="149.4" width="556" height="114" rx="12" fill="#EEF0FF" stroke="#4F46E5" stroke-width="1.4"/>
+<rect x="612" y="157.4" width="4" height="98" rx="2" fill="#4F46E5"/>
+<rect x="32" y="311.4" width="556" height="114" rx="12" fill="#FFFFFF" stroke="#C9D1DB" stroke-width="1"/>
+<rect x="32" y="319.4" width="4" height="98" rx="2" fill="#4F46E5"/>
+<rect x="612" y="311.4" width="556" height="114" rx="12" fill="#FFFFFF" stroke="#C9D1DB" stroke-width="1" stroke-dasharray="6 4"/>
+<rect x="32" y="473.4" width="1136" height="89" rx="12" fill="#F1F4F8" stroke="#64748B" stroke-width="1.4"/>
+<rect x="32" y="481.4" width="4" height="73" rx="2" fill="#64748B"/>
+<rect x="32" y="610.4" width="1136" height="89" rx="12" fill="#FFFFFF" stroke="#C9D1DB" stroke-width="1"/>
+<rect x="32" y="618.4" width="4" height="73" rx="2" fill="#64748B"/>
+<text x="56" y="184.4" font-size="20" font-weight="700" fill="#3730A3">ESP-IDF main task</text>
+<text x="56" y="215" font-size="17" fill="#2B3442">app_main, then the supervisor</text>
+<text x="56" y="239.7" font-size="17" fill="#2B3442">loop (100 ms tick)</text>
+<text x="636" y="184.4" font-size="20" font-weight="700" fill="#3730A3">VortexSys</text>
+<text x="636" y="215" font-size="17" fill="#2B3442">boot table, Step() every 100 ms</text>
+<text x="636" y="239.7" font-size="17" fill="#2B3442">16384 B stack, priority 5</text>
+<text x="56" y="346.4" font-size="20" font-weight="700" fill="#17202C">LedDemo</text>
+<text x="56" y="377" font-size="17" fill="#2B3442">WS2812TestThread: LED animations</text>
+<text x="56" y="401.7" font-size="17" fill="#2B3442">4096 B stack, priority 2</text>
+<text x="636" y="346.4" font-size="20" font-weight="700" fill="#17202C">canopen_slave</text>
+<text x="636" y="377" font-size="17" fill="#2B3442">CANopenNode, when menuconfig</text>
+<text x="636" y="401.7" font-size="17" fill="#2B3442">selects it; 8192 B, priority 5</text>
+<text x="56" y="508.4" font-size="20" font-weight="700" fill="#334155">Vortex HAL (hal/hf-hal-vortex-v1)</text>
+<text x="56" y="539" font-size="17" fill="#2B3442">Vortex::GetInstance(): managers, hf-core handlers, chip drivers</text>
+<text x="56" y="645.4" font-size="20" font-weight="700" fill="#17202C">Vortex V1 board</text>
+<text x="56" y="676" font-size="17" fill="#2B3442">ESP32-C6, TMC9660, AS5047U, BNO08x, PCAL95555, CAN, WS2812</text>
+<rect x="32" y="711.8" width="14" height="14" rx="4" fill="#EEF0FF" stroke="#4F46E5" stroke-width="1.4"/>
+<text x="54" y="726.4" font-size="16" fill="#566070">this repository</text>
+<rect x="192.9" y="711.8" width="14" height="14" rx="4" fill="#E6F6F4" stroke="#0F8B80" stroke-width="1.4"/>
+<text x="214.9" y="726.4" font-size="16" fill="#566070">optional</text>
+<rect x="303" y="711.8" width="14" height="14" rx="4" fill="#F1F4F8" stroke="#64748B" stroke-width="1.4"/>
+<text x="325" y="726.4" font-size="16" fill="#566070">HAL and hardware</text>
+</svg>

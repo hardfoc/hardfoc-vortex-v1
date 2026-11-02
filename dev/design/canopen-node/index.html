@@ -1,0 +1,5079 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Firmware for the HardFOC Vortex V1 motor controller (ESP32-C6, TMC9660): boot orchestration, supervisor, the CANopen device and its object dictionary.">
+      
+      
+      
+        <link rel="canonical" href="https://hardfoc.github.io/hardfoc-vortex-v1/latest/design/canopen-node/">
+      
+      
+        <link rel="prev" href="../">
+      
+      
+        <link rel="next" href="../drive-observability/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/hardfoc/favicon.svg">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+    
+    
+      
+        <title>CANopen node - Vortex V1 firmware</title>
+      
+    
+    
+  
+      <link rel="stylesheet" href="../../assets/stylesheets/main.57a0d79d.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.fb2fffe2.min.css">
+      
+      
+  
+  
+    
+      
+      
+    
+  
+    
+      
+      
+    
+  
+    
+      
+      
+    
+  
+    
+      
+      
+    
+  
+    
+      
+      
+    
+  
+    
+      
+      
+    
+  
+  
+  <style>:root{--md-admonition-icon--note:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2016%2016%22%3E%3Cpath%20d%3D%22M0%208a8%208%200%201%201%2016%200A8%208%200%200%201%200%208m8-6.5a6.5%206.5%200%201%200%200%2013%206.5%206.5%200%200%200%200-13M6.5%207.75A.75.75%200%200%201%207.25%207h1a.75.75%200%200%201%20.75.75v2.75h.25a.75.75%200%200%201%200%201.5h-2a.75.75%200%200%201%200-1.5h.25v-2h-.25a.75.75%200%200%201-.75-.75M8%206a1%201%200%201%201%200-2%201%201%200%200%201%200%202%22/%3E%3C/svg%3E');--md-admonition-icon--tip:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2016%2016%22%3E%3Cpath%20d%3D%22M8%201.5c-2.363%200-4%201.69-4%203.75%200%20.984.424%201.625.984%202.304l.214.253c.223.264.47.556.673.848.284.411.537.896.621%201.49a.75.75%200%200%201-1.484.211c-.04-.282-.163-.547-.37-.847a9%209%200%200%200-.542-.68q-.126-.149-.268-.32C3.201%207.75%202.5%206.766%202.5%205.25%202.5%202.31%204.863%200%208%200s5.5%202.31%205.5%205.25c0%201.516-.701%202.5-1.328%203.259q-.142.172-.268.319c-.207.245-.383.453-.541.681-.208.3-.33.565-.37.847a.751.751%200%200%201-1.485-.212c.084-.593.337-1.078.621-1.489.203-.292.45-.584.673-.848q.113-.133.213-.253c.561-.679.985-1.32.985-2.304%200-2.06-1.637-3.75-4-3.75M5.75%2012h4.5a.75.75%200%200%201%200%201.5h-4.5a.75.75%200%200%201%200-1.5M6%2015.25a.75.75%200%200%201%20.75-.75h2.5a.75.75%200%200%201%200%201.5h-2.5a.75.75%200%200%201-.75-.75%22/%3E%3C/svg%3E');--md-admonition-icon--warning:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2016%2016%22%3E%3Cpath%20d%3D%22M6.457%201.047c.659-1.234%202.427-1.234%203.086%200l6.082%2011.378A1.75%201.75%200%200%201%2014.082%2015H1.918a1.75%201.75%200%200%201-1.543-2.575Zm1.763.707a.25.25%200%200%200-.44%200L1.698%2013.132a.25.25%200%200%200%20.22.368h12.164a.25.25%200%200%200%20.22-.368Zm.53%203.996v2.5a.75.75%200%200%201-1.5%200v-2.5a.75.75%200%200%201%201.5%200M9%2011a1%201%200%201%201-2%200%201%201%200%200%201%202%200%22/%3E%3C/svg%3E');--md-admonition-icon--danger:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2016%2016%22%3E%3Cpath%20d%3D%22M9.504.43a1.516%201.516%200%200%201%202.437%201.713L10.415%205.5h2.123c1.57%200%202.346%201.909%201.22%203.004l-7.34%207.142a1.25%201.25%200%200%201-.871.354h-.302a1.25%201.25%200%200%201-1.157-1.723L5.633%2010.5H3.462c-1.57%200-2.346-1.909-1.22-3.004zm1.047%201.074L3.286%208.571A.25.25%200%200%200%203.462%209H6.75a.75.75%200%200%201%20.694%201.034l-1.713%204.188%206.982-6.793A.25.25%200%200%200%2012.538%207H9.25a.75.75%200%200%201-.683-1.06l2.008-4.418.003-.006-.004-.009-.006-.006-.008-.001q-.005%200-.009.004%22/%3E%3C/svg%3E');--md-admonition-icon--example:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2016%2016%22%3E%3Cpath%20d%3D%22M5%205.782V2.5h-.25a.75.75%200%200%201%200-1.5h6.5a.75.75%200%200%201%200%201.5H11v3.282l3.666%205.76C15.619%2013.04%2014.543%2015%2012.767%2015H3.233c-1.776%200-2.852-1.96-1.899-3.458Zm-2.4%206.565a.75.75%200%200%200%20.633%201.153h9.534a.75.75%200%200%200%20.633-1.153L12.225%2010.5h-8.45ZM9.5%202.5h-3V6c0%20.143-.04.283-.117.403L4.73%209h6.54L9.617%206.403A.75.75%200%200%201%209.5%206Z%22/%3E%3C/svg%3E');--md-admonition-icon--quote:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2016%2016%22%3E%3Cpath%20d%3D%22M1.75%202.5h10.5a.75.75%200%200%201%200%201.5H1.75a.75.75%200%200%201%200-1.5m4%205h8.5a.75.75%200%200%201%200%201.5h-8.5a.75.75%200%200%201%200-1.5m0%205h8.5a.75.75%200%200%201%200%201.5h-8.5a.75.75%200%200%201%200-1.5M2.5%207.75v6a.75.75%200%200%201-1.5%200v-6a.75.75%200%200%201%201.5%200%22/%3E%3C/svg%3E');}</style>
+
+
+
+    
+  <link rel="stylesheet" href="../../assets/hardfoc/hardfoc.css">
+
+    
+      
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" media="print" onload="this.media='all'"
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap"></noscript>
+
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  
+  
+  
+  <meta name="theme-color" content="#3b38c4" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#1b2140" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="HardFOC">
+  <meta property="og:title" content="CANopen node - Vortex V1 firmware">
+  <meta property="og:description" content="Firmware for the HardFOC Vortex V1 motor controller (ESP32-C6, TMC9660): boot orchestration, supervisor, the CANopen device and its object dictionary.">
+  <meta property="og:url" content="https://hardfoc.github.io/hardfoc-vortex-v1/latest/design/canopen-node/">
+  <meta name="twitter:card" content="summary">
+
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#vortex-v1-canopen-device-design" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+          <aside class="md-banner md-banner--warning">
+            <div class="md-banner__inner md-grid md-typeset">
+              
+  You are reading the documentation of an older version.
+  <a href="https://hardfoc.github.io/hardfoc-vortex-v1/"><strong>Go to the latest version.</strong></a>
+
+            </div>
+            <script>var el=document.querySelector("[data-md-component=outdated]"),base=new URL("../.."),outdated=__md_get("__outdated",sessionStorage,base);!0===outdated&&el&&(el.hidden=!1)</script>
+          </aside>
+        
+      </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Vortex V1 firmware" class="md-header__button md-logo" aria-label="Vortex V1 firmware" data-md-component="logo">
+      
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" aria-hidden="true" focusable="false" class="hf-mark">
+    <rect width="64" height="64" rx="15" fill="#FFFFFF" fill-opacity="0.14"/>
+    <g fill="none" stroke-width="5" stroke-linecap="round">
+      <path d="M35.74 14.39A18 18 0 0 1 49.12 37.56" stroke="#FFFFFF"/>
+      <path d="M45.38 44.04A18 18 0 0 1 18.62 44.04" stroke="#FFFFFF" stroke-opacity="0.72"/>
+      <path d="M14.88 37.56A18 18 0 0 1 28.26 14.39" stroke="#5EEAD4"/>
+      <path d="M32 32L40.66 27" stroke="#5EEAD4" stroke-width="4.5"/>
+    </g>
+    <circle cx="32" cy="32" r="4" fill="#FFFFFF"/>
+  </svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          
+          <a class="hf-org" href="https://hardfoc.github.io/" title="All HardFOC documentation">HardFOC</a>
+          <span class="hf-org__sep" aria-hidden="true">/</span>
+          <span class="md-ellipsis">
+            Vortex V1 firmware
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              CANopen node
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Follow the system theme"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Follow the system theme" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/hardfoc/hardfoc-vortex-v1" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    hardfoc/hardfoc-vortex-v1
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../getting-started/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Get started
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../architecture/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Concepts
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../configuration/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Guides
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../../od-reference/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Vortex V1 firmware" class="md-nav__button md-logo" aria-label="Vortex V1 firmware" data-md-component="logo">
+      
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" aria-hidden="true" focusable="false" class="hf-mark">
+    <rect width="64" height="64" rx="15" fill="#FFFFFF" fill-opacity="0.14"/>
+    <g fill="none" stroke-width="5" stroke-linecap="round">
+      <path d="M35.74 14.39A18 18 0 0 1 49.12 37.56" stroke="#FFFFFF"/>
+      <path d="M45.38 44.04A18 18 0 0 1 18.62 44.04" stroke="#FFFFFF" stroke-opacity="0.72"/>
+      <path d="M14.88 37.56A18 18 0 0 1 28.26 14.39" stroke="#5EEAD4"/>
+      <path d="M32 32L40.66 27" stroke="#5EEAD4" stroke-width="4.5"/>
+    </g>
+    <circle cx="32" cy="32" r="4" fill="#FFFFFF"/>
+  </svg>
+
+    </a>
+    Vortex V1 firmware
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/hardfoc/hardfoc-vortex-v1" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    hardfoc/hardfoc-vortex-v1
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Get started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Get started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../hardware/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hardware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concepts
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Concepts
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../threads/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Threads
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../boot-and-ota/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Boot and updates
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../safety/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Safety
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../canopen/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CANopen
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+          
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../tools/usb-can/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../troubleshooting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+          
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../diagrams/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../od-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Object dictionary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../testing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing and CI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_3" checked>
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design notes
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5_3" id="__nav_5_3_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Design notes
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CANopen node
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CANopen node
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-goals-non-goals-and-requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Goals, non-goals and requirements
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Goals, non-goals and requirements">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#21-goals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1 Goals
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#22-non-goals-this-design" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.2 Non-goals (this design)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#23-requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.3 Requirements
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-what-exists-today-verified" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. What exists today (verified)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Architecture
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Architecture">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#41-layers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.1 Layers
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#42-object-dictionary-as-the-single-source-of-truth" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.2 Object dictionary as the single source of truth
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#43-transport-abstraction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.3 Transport abstraction
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#44-threads-priorities-and-timing-on-the-single-core-c6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.4 Threads, priorities and timing on the single-core C6
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#45-timing-budget-at-1-mbits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.5 Timing budget at 1 Mbit/s
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-object-dictionary-plan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Object dictionary plan
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Object dictionary plan">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#51-communication-profile-area-0x10000x1fff" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.1 Communication profile area (0x1000–0x1FFF)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#52-cia-402-axis-objects-axis-1-at-0x6000-axis-n-at-0x6000--0x800n1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.2 CiA 402 axis objects (axis 1 at 0x6000; axis n at 0x6000 + 0x800·(n−1))
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#53-manufacturer-area-0x20000x5fff" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.3 Manufacturer area (0x2000–0x5FFF)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#54-default-pdo-mappings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.4 Default PDO mappings
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#55-liveness-requirements-for-motion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.5 Liveness requirements for motion
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#56-cia-402-state-machine-as-a-rule-table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.6 CiA 402 state machine as a rule table
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-motor-agnostic-drive-faults-and-persistence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Motor-agnostic drive, faults and persistence
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Motor-agnostic drive, faults and persistence">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#61-motor-and-feedback-catalog" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.1 Motor and feedback catalog
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#62-safe-defaults-and-limit-enforcement" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.2 Safe defaults and limit enforcement
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#63-commissioning-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.3 Commissioning flow
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#64-fault-funnel-and-emcy-mapping" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.4 Fault funnel and EMCY mapping
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#65-safety-arbiter-and-liveness-gated-watchdog" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.5 Safety arbiter and liveness-gated watchdog
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#66-service-only-objects" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.6 Service-only objects
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#67-persistence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.7 Persistence
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-wireless-paths" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Wireless paths
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. Wireless paths">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#71-recommendation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.1 Recommendation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#72-frame-record-tunnel-shared-by-wi-fi-and-esp-now" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.2 Frame-record tunnel (shared by Wi-Fi and ESP-NOW)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#73-security" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.3 Security
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#74-safety-rules-never-bypass" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.4 Safety rules (never bypass)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#75-expectations-to-be-measured-on-the-bench" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.5 Expectations (to be measured on the bench)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-can-fd-readiness" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. CAN FD readiness
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-tooling-and-verification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Tooling and verification
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="9. Tooling and verification">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#91-eds-and-drift" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9.1 EDS and drift
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#92-python-package-vortex-canopen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9.2 Python package vortex-canopen
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#93-bench-test-plan-usb-can" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9.3 Bench test plan (USB-CAN)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#94-host-ci-same-node-simulated-hardware" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9.4 Host CI: same node, simulated hardware
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-migration-and-implementation-plan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Migration and implementation plan
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="10. Migration and implementation plan">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#101-keep--change--delete" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10.1 Keep / change / delete
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#102-ordered-prs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10.2 Ordered PRs
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11-open-questions-for-the-owner" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. Open questions for the owner
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#12-references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12. References
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../drive-observability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Drive observability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-goals-non-goals-and-requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Goals, non-goals and requirements
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Goals, non-goals and requirements">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#21-goals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1 Goals
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#22-non-goals-this-design" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.2 Non-goals (this design)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#23-requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.3 Requirements
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-what-exists-today-verified" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. What exists today (verified)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Architecture
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Architecture">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#41-layers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.1 Layers
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#42-object-dictionary-as-the-single-source-of-truth" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.2 Object dictionary as the single source of truth
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#43-transport-abstraction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.3 Transport abstraction
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#44-threads-priorities-and-timing-on-the-single-core-c6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.4 Threads, priorities and timing on the single-core C6
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#45-timing-budget-at-1-mbits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.5 Timing budget at 1 Mbit/s
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-object-dictionary-plan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Object dictionary plan
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Object dictionary plan">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#51-communication-profile-area-0x10000x1fff" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.1 Communication profile area (0x1000–0x1FFF)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#52-cia-402-axis-objects-axis-1-at-0x6000-axis-n-at-0x6000--0x800n1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.2 CiA 402 axis objects (axis 1 at 0x6000; axis n at 0x6000 + 0x800·(n−1))
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#53-manufacturer-area-0x20000x5fff" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.3 Manufacturer area (0x2000–0x5FFF)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#54-default-pdo-mappings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.4 Default PDO mappings
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#55-liveness-requirements-for-motion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.5 Liveness requirements for motion
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#56-cia-402-state-machine-as-a-rule-table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.6 CiA 402 state machine as a rule table
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-motor-agnostic-drive-faults-and-persistence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Motor-agnostic drive, faults and persistence
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Motor-agnostic drive, faults and persistence">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#61-motor-and-feedback-catalog" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.1 Motor and feedback catalog
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#62-safe-defaults-and-limit-enforcement" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.2 Safe defaults and limit enforcement
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#63-commissioning-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.3 Commissioning flow
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#64-fault-funnel-and-emcy-mapping" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.4 Fault funnel and EMCY mapping
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#65-safety-arbiter-and-liveness-gated-watchdog" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.5 Safety arbiter and liveness-gated watchdog
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#66-service-only-objects" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.6 Service-only objects
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#67-persistence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.7 Persistence
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-wireless-paths" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Wireless paths
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. Wireless paths">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#71-recommendation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.1 Recommendation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#72-frame-record-tunnel-shared-by-wi-fi-and-esp-now" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.2 Frame-record tunnel (shared by Wi-Fi and ESP-NOW)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#73-security" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.3 Security
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#74-safety-rules-never-bypass" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.4 Safety rules (never bypass)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#75-expectations-to-be-measured-on-the-bench" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.5 Expectations (to be measured on the bench)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-can-fd-readiness" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. CAN FD readiness
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-tooling-and-verification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Tooling and verification
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="9. Tooling and verification">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#91-eds-and-drift" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9.1 EDS and drift
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#92-python-package-vortex-canopen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9.2 Python package vortex-canopen
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#93-bench-test-plan-usb-can" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9.3 Bench test plan (USB-CAN)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#94-host-ci-same-node-simulated-hardware" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9.4 Host CI: same node, simulated hardware
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-migration-and-implementation-plan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Migration and implementation plan
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="10. Migration and implementation plan">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#101-keep--change--delete" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10.1 Keep / change / delete
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#102-ordered-prs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10.2 Ordered PRs
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11-open-questions-for-the-owner" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. Open questions for the owner
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#12-references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12. References
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+    <a href="https://github.com/hardfoc/hardfoc-vortex-v1/edit/main/docs/design/canopen-node.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
+    </a>
+  
+  
+
+
+<h1 id="vortex-v1-canopen-device-design">Vortex V1 CANopen Device: Design<a class="headerlink" href="#vortex-v1-canopen-device-design" title="Permanent link">&para;</a></h1>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Status</td>
+<td>Draft for owner review</td>
+</tr>
+<tr>
+<td>Date</td>
+<td>2026-11-01</td>
+</tr>
+<tr>
+<td>Scope</td>
+<td>Firmware, tooling and verification for a CiA 301 / 305 / 402 CANopen device on the HardFOC Vortex V1 board, with wireless access paths and a CAN FD migration route</td>
+</tr>
+<tr>
+<td>Code base read</td>
+<td><code>hf-hal-vortex-v1@28f1a63</code> (branch <code>ci/fix-workflows</code>), <code>hardfoc-vortex-v1@0d98cde</code> (branch <code>ci/fix-workflows</code>), <code>hf-core@54cbb5e</code> (main; submodules <code>hf-core-utils@2f7e1da</code>, <code>hf-utils-canopen@242a88e</code>, <code>hf-internal-interface-wrap@ba7f5ca</code>), <code>hf-vortex-driver@68cd06d</code>, <code>hf-tmc9660-driver@bc3cfcc</code>, <code>hf-as5047u-driver@8b4f7a9</code>, <code>hf-bno08x-driver@9936d27</code>, <code>hf-pincfg@6b8354d</code>, CANopenNode <code>ac21407</code> (v4, 2025-11-22)</td>
+</tr>
+<tr>
+<td>Reference architecture</td>
+<td><code>pw-controller-sw</code> (layering, <code>BaseThread</code> run control, rule-table state machines in contracts, safety arbiter, liveness-gated watchdog, host tests)</td>
+</tr>
+</tbody>
+</table>
+<p>Paths below are relative to the repository named in each section. Mermaid diagrams render on GitHub.</p>
+<hr />
+<h2 id="1-summary">1. Summary<a class="headerlink" href="#1-summary" title="Permanent link">&para;</a></h2>
+<p>Vortex V1 should become a <strong>CiA 402 servo drive node</strong> on its CAN port. It should keep one object dictionary (OD), described in a single YAML source. That source generates the CANopenNode <code>OD.c/OD.h</code>, the CiA 306 EDS file, C++ index constants and the Python constants. Every transport carries the same CANopen services against that OD: the TWAI port today, a CAN FD port on a future STM32, ESP-NOW and Wi-Fi. Motion is driven by the TMC9660's own current, velocity, position and ramp loops. The ESP32-C6 runs the CiA 402 state machine, mode logic, limits, the fault arbiter and the communication stack. The repository already has the pieces (CANopenNode v4 as a submodule, a <code>CO_driver</code> shim, managers for every chip), but the current CAN path does not work on hardware (§3). The plan therefore rebuilds the integration rather than extending it.</p>
+<p>Key decisions:</p>
+<ol>
+<li><strong>Stack:</strong> CANopenNode v4 (Apache-2.0, already vendored) behind a narrow <code>CoStack</code> seam, so a CiA 1301 stack can replace it later without touching application code.</li>
+<li><strong>Single source of truth:</strong> <code>od/vortex_od.yaml</code> generates firmware, EDS, documentation and Python. CI fails on drift.</li>
+<li><strong>Transport router:</strong> one <code>CO_CANmodule</code> that fans out to N <code>ICanPort</code> bindings, with per-port COB-ID policy. Wireless gets its own SDO server channel and read-only mirrors. It never gets motion authority by default.</li>
+<li><strong>Threads:</strong> one SYNC-driven real-time owner thread for SPI2 (TMC9660 + AS5047U). It runs as a short burst at the highest priority. A separate service thread handles SDO, storage and NMT. An I2C owner thread handles the PCAL95555 and BNO08x. A safety monitor gates the task watchdog. The TMC9660's own SPI heartbeat is the independent last-resort stop.</li>
+<li><strong>Wireless:</strong> Wi-Fi with a TLS tunnel that python-can can use as a bus, so the same tools work over Wi-Fi as over USB-CAN. CiA 309-3 ASCII is an optional extra. ESP-NOW is for a USB dongle that bridges to a PC (slcan). It also serves board-to-board links.</li>
+<li><strong>Verification:</strong> the same node application and OD build for Linux and run against <code>vcan0</code>, or against a pipe bus where <code>vcan</code> is unavailable. They are exercised by pytest and python-canopen against a simulated motor.</li>
+</ol>
+<hr />
+<h2 id="2-goals-non-goals-and-requirements">2. Goals, non-goals and requirements<a class="headerlink" href="#2-goals-non-goals-and-requirements" title="Permanent link">&para;</a></h2>
+<h3 id="21-goals">2.1 Goals<a class="headerlink" href="#21-goals" title="Permanent link">&para;</a></h3>
+<ul>
+<li>G1: A complete, conformant-in-spirit CANopen device on the board's CAN port: CiA 301 NMT, heartbeat, SYNC, TIME, EMCY, SDO (expedited, segmented, block), PDO with runtime mapping, 0x1010/0x1011 store/restore, identity, and CiA 305 LSS.</li>
+<li>G2: Easy to exercise with a USB-CAN adapter on Windows, Linux or macOS, using a single <code>pip install</code> tool.</li>
+<li>G3: Motor-agnostic. BLDC/PMSM, stepper and brushed DC, with Hall, ABN, SPI-encoder or open-loop feedback, are selected and commissioned through OD objects. No rebuild is needed.</li>
+<li>G4: Expose the IMU (BNO08x), the absolute encoder (AS5047U), temperatures, power rails, spare GPIO, expansion slots and the LED.</li>
+<li>G5: Extra access paths over Wi-Fi and ESP-NOW that use the same OD semantics and never weaken safety.</li>
+<li>G6: CAN FD on a future STM32 should be a port-binding and stack-configuration change, not an application rewrite.</li>
+</ul>
+<h3 id="22-non-goals-this-design">2.2 Non-goals (this design)<a class="headerlink" href="#22-non-goals-this-design" title="Permanent link">&para;</a></h3>
+<ul>
+<li>CiA 402-4 functional safety (STO/SS1 certification). The design is safety-aware, but nothing in it is safety-rated.</li>
+<li>Firmware update over CANopen (CiA 302-3, 0x1F50/0x1F51). The partition layout is prepared for it (§10, step 12). The protocol is deferred.</li>
+<li>Acting as an NMT master or CiA 402 master for other drives. This is what the current <code>CANOpenBLDCThread</code> does, and it is removed (§10).</li>
+<li>CANopen safety (SRDO, CiA 304), CiA 302 network management, and Thread/Zigbee on 802.15.4.</li>
+<li>CiA conformance certification. Conformance-<em>style</em> tests are in scope. Certification needs a CiA vendor ID and a test house (open question Q1).</li>
+</ul>
+<h3 id="23-requirements">2.3 Requirements<a class="headerlink" href="#23-requirements" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Requirement</th>
+<th>Owner ask</th>
+<th>Verified by</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>R1</td>
+<td>Node implements CiA 301 services in §2.1 G1 with CANopenNode v4</td>
+<td>complete CANopen node</td>
+<td>host CI conformance suite (§9.4)</td>
+</tr>
+<tr>
+<td>R2</td>
+<td>CiA 305 LSS: node-ID and bit-rate configuration, fastscan, persistent store</td>
+<td>complete node, USB-CAN</td>
+<td><code>test_lss.py</code>, bench</td>
+</tr>
+<tr>
+<td>R3</td>
+<td>CiA 402 state machine (0x6040/0x6041), modes pp, pv, tq, hm, csp, csv, cst; ip reported unsupported in 0x6502</td>
+<td>many motors</td>
+<td><code>test_402_fsm.py</code>, bench demos</td>
+</tr>
+<tr>
+<td>R4</td>
+<td>OD generated from one source. EDS shipped and identical to firmware OD (CI drift check)</td>
+<td>USB-CAN usability</td>
+<td>CI <code>od-drift</code> job</td>
+</tr>
+<tr>
+<td>R5</td>
+<td><code>vortex-canopen</code> Python CLI over any python-can interface and over the Wi-Fi tunnel</td>
+<td>USB-CAN usability, wireless</td>
+<td>CLI smoke tests in CI</td>
+</tr>
+<tr>
+<td>R6</td>
+<td>Motor/feedback catalog rows and commissioning procedures in the OD</td>
+<td>many motors and feedbacks</td>
+<td>sim tests + bench matrix</td>
+</tr>
+<tr>
+<td>R7</td>
+<td>IMU, encoder, temperatures, rails, GPIO, LED in manufacturer area with PDO-mappable packed variants</td>
+<td>expose IMU and expansions</td>
+<td><code>test_manufacturer_area.py</code></td>
+</tr>
+<tr>
+<td>R8</td>
+<td>Every detected fault maps to one EMCY code, error-register bits and a CiA 402 reaction from one table</td>
+<td>safety</td>
+<td>table-driven host test</td>
+</tr>
+<tr>
+<td>R9</td>
+<td>Heartbeat-consumer loss, RPDO timeout and SYNC loss trigger the 0x6007 abort-connection reaction</td>
+<td>safety</td>
+<td>fault-injection tests</td>
+</tr>
+<tr>
+<td>R10</td>
+<td>0x1010/0x1011 persist to NVS with records keyed by OD address and survive OD layout changes</td>
+<td>persistence</td>
+<td><code>test_storage.py</code>, migration fixtures</td>
+</tr>
+<tr>
+<td>R11</td>
+<td>Wireless transports reach the same OD. Enabling the drive over wireless is refused unless policy allows it</td>
+<td>wireless, safety</td>
+<td><code>test_authority.py</code></td>
+</tr>
+<tr>
+<td>R12</td>
+<td>Frame type, port capabilities and PDO length checks are FD-ready. No 8-byte assumptions above the port binding</td>
+<td>CAN FD on STM32</td>
+<td>static check + host FD build (<code>CO_PDO_MAX_SIZE</code> test, §8)</td>
+</tr>
+<tr>
+<td>R13</td>
+<td>1 kHz SYNC with one node at 1 Mbit/s and an RT step ≤ 300 µs WCET on the C6</td>
+<td>performance</td>
+<td>on-target timing histogram object 0x4201</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="3-what-exists-today-verified">3. What exists today (verified)<a class="headerlink" href="#3-what-exists-today-verified" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Area</th>
+<th>Fact</th>
+<th>Evidence</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CANopenNode</td>
+<td>v4 submodule at <code>third_party/CANopenNode</code> (commit <code>ac21407</code>). Compiled only when <code>CONFIG_HARDFOC_HAL_CANOPENNODE_SLAVE</code> is set</td>
+<td><code>hf-hal-vortex-v1/Kconfig</code>, <code>CMakeLists.txt:57-75</code>, <code>hf-core/cmake/hf_core_build_settings.cmake:460-494</code></td>
+</tr>
+<tr>
+<td>OD</td>
+<td>The build compiles the <strong>upstream example</strong> <code>example/OD.c</code> (DS301 profile, 1 SDO server, 4 RPDO, 4 TPDO). It has no CiA 402 or manufacturer objects</td>
+<td><code>hf_core_build_settings.cmake:492</code>, <code>third_party/CANopenNode/example/OD.h:45-48</code></td>
+</tr>
+<tr>
+<td>Storage</td>
+<td><code>example/CO_storageBlank.c</code> is compiled, so 0x1010/0x1011 do nothing</td>
+<td>same file, line 479</td>
+</tr>
+<tr>
+<td>Missing stack modules</td>
+<td><code>CO_fifo.c</code>, <code>crc16-ccitt.c</code> and <code>CO_gateway_ascii.c</code> are not compiled, and <code>CO_CONFIG_FIFO</code>/<code>CO_CONFIG_CRC16</code> default to 0. So there is no SDO block transfer and no gateway</td>
+<td><code>301/CO_config.h:706,739</code></td>
+</tr>
+<tr>
+<td>Driver shim</td>
+<td><code>hf-core/handlers/common/canopen/CO_driver_vortex.c</code>. Software RX dispatch. <code>CO_CANsend</code> calls the registered TX hook <strong>inside</strong> <code>portENTER_CRITICAL</code>. The hook ends in <code>EspCan::SendMessage</code> → <code>twai_node_transmit(timeout)</code> + <code>vTaskDelay</code>. That is a blocking call inside a critical section. <code>CO_CANmodule_process</code> is empty, so <code>bufferFull</code> frames are never retried and error-state bits are never reported to the stack</td>
+<td><code>CO_driver_vortex.c:16-18,145-178,200</code>; <code>CO_driver_target.h</code> lock macros</td>
+</tr>
+<tr>
+<td>RX path</td>
+<td><code>CanopenSlaveRuntime</code> polls <code>BaseCan::ReceiveMessage(m, 0)</code>. <code>EspCan::ReceiveMessage</code> unconditionally returns <code>CAN_ERR_UNSUPPORTED_OPERATION</code>. <strong>The slave never receives a frame.</strong> The same applies to <code>CANOpenBLDCThread</code> (via <code>CanOpenBaseCanLink::Read</code>)</td>
+<td><code>hardfoc-vortex-v1/main/apps/node/canopen/CanopenSlaveRuntime.cpp:75</code>; <code>hf-internal-interface-wrap/src/mcu/esp32/EspCan.cpp:282-294</code>; <code>CANOpenBLDCThread.cpp:114</code></td>
+</tr>
+<tr>
+<td>EspCan RX</td>
+<td>The RX callback runs in ISR context (<code>twai_node_receive_from_isr</code>) and calls the user callback from the ISR. Its conversion error path calls <code>ESP_LOGE</code> in ISR context</td>
+<td><code>EspCan.cpp:766-800,952-963</code></td>
+</tr>
+<tr>
+<td>EspCan TX</td>
+<td>Adds <code>vTaskDelay(pdMS_TO_TICKS(1))</code> after <strong>every</strong> successful transmit ("prevent driver overload")</td>
+<td><code>EspCan.cpp:262-266</code></td>
+</tr>
+<tr>
+<td>Tick rate</td>
+<td><code>CONFIG_FREERTOS_HZ=100</code>, so <code>pdMS_TO_TICKS(1) == 0</code>. The slave task loop (<code>vTaskDelay(pdMS_TO_TICKS(1))</code>, priority 5) is a busy yield that starves the idle task. <code>CONFIG_ESP_TASK_WDT_CHECK_IDLE_TASK_CPU0=y</code> with a 5 s timeout, so a TWDT trip is likely. (Inferred from config, not bench-verified.)</td>
+<td><code>hardfoc-vortex-v1/sdkconfig:1077,1120</code>; <code>CanopenSlaveRuntime.cpp:98</code></td>
+</tr>
+<tr>
+<td>Bit rate</td>
+<td>500 kbit/s hard-coded in two places</td>
+<td><code>CommChannelsManager.cpp:282</code>; <code>CanopenSlaveRuntime.cpp:117</code></td>
+</tr>
+<tr>
+<td>Build break</td>
+<td><code>VortexSystemThread.cpp</code> includes <code>VortexCanHostThread.h</code> unconditionally, and that file does not exist in any repository</td>
+<td><code>apps/system/sub_threads/VortexSystemThread.cpp:2</code>; <code>find</code> over all clones</td>
+</tr>
+<tr>
+<td><code>BaseCan</code> FD</td>
+<td><code>hf_can_message_t</code> has FD flags (<code>is_canfd</code>, <code>is_brs</code>, <code>is_esi</code>, <code>canfd_dlc</code>) but <code>data[8]</code>. <code>SetDLC()</code> accepts 64 for FD frames. That is a latent buffer overrun, because the struct only <em>pretends</em> to model FD</td>
+<td><code>hf-internal-interface-wrap/inc/base/BaseCan.h:165-235</code></td>
+</tr>
+<tr>
+<td>STM32</td>
+<td><code>StmCan</code> wraps bxCAN or FDCAN. The FD data phase is "requires HAL extensions"</td>
+<td><code>inc/mcu/stm32/StmCan.h:3-8</code></td>
+</tr>
+<tr>
+<td>TWAI hardware</td>
+<td>ESP-IDF documents <strong>two</strong> TWAI controllers on the C6, classic only. FD frames are treated as errors. There is one mask filter (or a dual 16-bit split). The RX callback runs in ISR context. Vortex routes one controller (TX GPIO14, RX GPIO15)</td>
+<td><a href="https://docs.espressif.com/projects/esp-idf/en/stable/esp32c6/api-reference/peripherals/twai.html">IDF TWAI (C6)</a>; <code>hf_functional_pin_config_vortex_v1.hpp:95-96</code></td>
+</tr>
+<tr>
+<td>Transceiver standby</td>
+<td><code>PCAL_CAN_HS_STB_OP</code> (PCAL95555 P10) is defined, but no code in the HAL or examples drives it. If the transceiver's STB defaults to standby, the bus is silent. Verify against the schematic</td>
+<td><code>grep</code> over <code>hf-hal-vortex-v1/lib</code>, <code>examples</code></td>
+</tr>
+<tr>
+<td>Host client</td>
+<td><code>hf-vortex-driver</code> is NMT plus expedited SDO download only. <code>VortexProtocol.hpp</code> names 0x1021 as "Error behavior". In CiA 301 that object is 0x1029 (0x1021 is Store EDS)</td>
+<td><code>inc/vortex/VortexProtocol.hpp:21</code></td>
+</tr>
+<tr>
+<td>Helpers</td>
+<td><code>docs/helpers/usb_can/*.py</code> hand-builds frames with python-can (no python-canopen). A <code>__pycache__</code> directory is committed</td>
+<td><code>hardfoc-vortex-v1/docs/helpers/usb_can/</code></td>
+</tr>
+<tr>
+<td>TMC9660</td>
+<td>Parameter-mode driver with motor types NONE/DC/STEPPER/BLDC, commutation modes (open-loop V/I, ABN, Hall, SPI encoder), velocity/position sensor selection, ramp, reference search, brake, I²t, protection, stop events and an <strong>SPI/UART heartbeat monitor</strong> (<code>HEARTBEAT_MONITORING_CONFIG/TIMEOUT</code>). Erratum 4: target updates are serviced in a ~1 kHz internal loop</td>
+<td><code>hf-tmc9660-driver/inc/tmc9660.hpp:465-5044</code>, <code>parameter_mode/tmc9660_param_mode_tmcl.hpp:460,1569,1752,2898,5028,5106</code>; <code>examples/esp32/main/common/vortex_bench_safety.hpp:169-173</code></td>
+</tr>
+<tr>
+<td>Feedback wiring</td>
+<td>The AS5047U is on the <strong>host</strong> SPI2 (CS GPIO20), not on the TMC SPI-encoder port. Hall/ABN need a bootloader <code>BootloaderConfig</code> mux. Closed loop on AS5047U is "static unless wired through SPI-enc on the TMC"</td>
+<td><code>examples/esp32/docs/BENCH_MATRIX.md:28-34,63</code>; <code>BLDC_BRINGUP.md:19</code></td>
+</tr>
+<tr>
+<td>Expansion</td>
+<td><code>EXT_GPIO_CS_1</code> (GPIO19) and <code>EXT_GPIO_CS_2</code> (GPIO8) are external SPI2 chip selects. <code>MotorController</code> reserves device slots 2 and 3 for external TMC9660s. <code>EncoderManager</code>/<code>ImuManager</code> have external slots. There is a UART (GPIO&#8536;), and PCAL95555 bits 0, 7, 8, 9 are unassigned</td>
+<td>pin map lines 88-131; <code>MotorController.h</code> (<code>MAX_TMC9660_DEVICES=4</code>, indices &#8532;)</td>
+</tr>
+<tr>
+<td>Persistence</td>
+<td><code>NvsManager</code> exposes namespaces <code>vortex</code>, <code>vortex_cal</code>, <code>vortex_cfg</code>. The partition table is single-app (no OTA)</td>
+<td><code>lib/managers/NvsManager.cpp:26-28</code>; <code>sdkconfig:597</code></td>
+</tr>
+<tr>
+<td>Version info</td>
+<td>HAL CMake already generates <code>HF_HAL_GIT_SHA_*</code> macros per submodule</td>
+<td><code>hf-hal-vortex-v1/CMakeLists.txt:353-380</code></td>
+</tr>
+</tbody>
+</table>
+<p>Conclusion: keep the CANopenNode submodule, the CMake gate idea, the managers and the TMC9660/AS5047U/BNO08x handlers. Rewrite the driver binding, runtime, OD, storage and tooling.</p>
+<hr />
+<h2 id="4-architecture">4. Architecture<a class="headerlink" href="#4-architecture" title="Permanent link">&para;</a></h2>
+<h3 id="41-layers">4.1 Layers<a class="headerlink" href="#41-layers" title="Permanent link">&para;</a></h3>
+<p>The layout follows <code>pw-controller-sw/firmware/README.md</code>. A header-only contracts package holds the shared types and pure rule tables. The HAL owns hardware, the app owns threads, and host tests link only contracts and the app logic.</p>
+<pre class="mermaid"><code>flowchart TB
+  subgraph tools["Host tools (PC)"]
+    CLI["vortex-canopen CLI\n(python-canopen + python-can)"]
+    EDS["vortex_v1.eds (generated)"]
+  end
+  subgraph app["hardfoc-vortex-v1 / main (node app)"]
+    NODE["CoNode: CANopenNode instance,\nOD extensions, storage, LSS"]
+    DRV["DriveAxis: CiA 402 FSM, modes,\nlimits, commissioning"]
+    SAF["SafetyArbiter + LivenessMonitor"]
+    WL["Wireless: WiFi tunnel, ESP-NOW, 309-3 (opt)"]
+    ROUTE["FrameRouter (N ports, COB-ID policy)"]
+  end
+  subgraph contracts["hardfoc-vortex-v1 / contracts (header-only, host-tested)"]
+    ODT["Generated OD ids + record types"]
+    FSM["Cia402 rule table, fault policy table,\nauthority rules, PDO profile tables"]
+    FR["CanFrame (len&lt;=64, FDF/BRS/ESI), port caps"]
+  end
+  subgraph hal["hf-hal-vortex-v1 (board HAL facades)"]
+    AX["AxisPort facade (TMC9660 via MotorController)"]
+    SENS["Encoder / IMU / Temp / Gpio / Led facades"]
+    NVS["NvsManager"]
+    CANP["CAN port binding (EspTwaiPort)"]
+  end
+  subgraph core["hf-core"]
+    BASE["BaseCan v2, BaseSpi, BaseI2c, EspCan/StmCan"]
+    H["Tmc9660Handler, As5047uHandler,\nBno08xHandler, Pcal95555Handler"]
+    COD["CO_driver_hardfoc.c (generic over ICanPort)"]
+  end
+  CLI --&gt; EDS
+  NODE --&gt; ODT
+  DRV --&gt; FSM
+  SAF --&gt; FSM
+  ROUTE --&gt; FR
+  NODE --&gt; ROUTE
+  ROUTE --&gt; CANP
+  WL --&gt; ROUTE
+  DRV --&gt; AX
+  NODE --&gt; SENS
+  NODE --&gt; NVS
+  AX --&gt; H
+  SENS --&gt; H
+  CANP --&gt; BASE
+  NODE --&gt; COD
+  COD --&gt; FR</code></pre>
+<p>Rules (adapted from <code>pw-hal/README.md</code> "Design rules"):</p>
+<ol>
+<li>The node app never includes <code>twai.h</code>, <code>EspCan.h</code> or chip drivers. It uses HAL facades (<code>AxisPort</code>, <code>ImuFacade</code>, …) and the <code>ICanPort</code> interface.</li>
+<li>Contracts contain no <code>.cpp</code>, no RTOS and no HAL. They hold the CiA 402 transition table, fault policy table, authority rules, PDO profile tables and generated OD identifiers. Host tests use them directly.</li>
+<li>One bus has one owner thread (see <code>pw-controller-sw/docs/software/threading-model.md</code> §4): SPI2 belongs to <code>drive_rt</code>, and I2C belongs to <code>i2c_io</code>.</li>
+<li>Hot paths bind once at init. They do no string lookups (<code>GpioManager::Get(std::string_view)</code>) per cycle.</li>
+</ol>
+<h3 id="42-object-dictionary-as-the-single-source-of-truth">4.2 Object dictionary as the single source of truth<a class="headerlink" href="#42-object-dictionary-as-the-single-source-of-truth" title="Permanent link">&para;</a></h3>
+<pre class="mermaid"><code>flowchart LR
+  Y["od/vortex_od.yaml\n(objects, types, access, PDO-mappable,\ndefaults, limits, units, persist group,\nFD max lengths, docs)"] --&gt; G["tools/odgen (Python)"]
+  G --&gt; ODC["OD.c / OD.h\n(CANopenNode v4 format)"]
+  G --&gt; EDSF["vortex_v1.eds (CiA 306)"]
+  G --&gt; HPP["contracts/vortex_od_ids.hpp\n+ record structs"]
+  G --&gt; PY["vortex_canopen/od_ids.py\n+ packaged EDS"]
+  G --&gt; MD["docs/od-reference.md"]
+  G --&gt; XDD["vortex_v1.xdd (CiA 1311, later for FD)"]
+  ODC --&gt; FW["firmware build"]
+  EDSF --&gt; CLI2["python-canopen import_od"]</code></pre>
+<ul>
+<li>The YAML schema mirrors the CiA 306 attributes: <code>ParameterName</code>, <code>ObjectType</code>, <code>DataType</code>, <code>AccessType</code>, <code>PDOMapping</code>, <code>DefaultValue</code>, <code>LowLimit</code>/<code>HighLimit</code>. It adds: <code>persist: comm|app|cal|none</code>, <code>od_extension: &lt;C++ handler&gt;</code> (dynamic objects served from snapshots), <code>fd_only: bool</code> and <code>units</code>.</li>
+<li><code>odgen</code> writes <code>OD.c/OD.h</code> in the exact CANopenNode v4 layout. A CI job cross-checks the output by importing the generated EDS with the pinned <a href="https://github.com/CANopenNode/CANopenEditor">CANopenEditor</a> EDSSharp CLI, exporting "CANopenNode V4", and diffing the structural content (entries, sub-counts, attributes). The in-house emitter is primary because it runs anywhere without .NET. CANopenEditor is the independent oracle. (CANopenEditor lists EDS, XDD v1.0/1.1, CANopenNode V4 and Markdown exporters. Confirm the CLI flag names against the pinned release.)</li>
+<li>The drift gate is <code>odgen --check</code> in CI. It regenerates every artefact and fails if any checked-in file differs, or if <code>0x1018:03</code> revision / OD hash (0x5FFE) was not bumped when the dictionary changed.</li>
+</ul>
+<h3 id="43-transport-abstraction">4.3 Transport abstraction<a class="headerlink" href="#43-transport-abstraction" title="Permanent link">&para;</a></h3>
+<p>All CANopen semantics live in one CANopenNode instance. Transports are <em>ports</em> under one <code>CO_CANmodule</code>.</p>
+<pre class="mermaid"><code>flowchart TB
+  subgraph stack["CANopenNode CO_t (one OD)"]
+    SDO1["SDO server 1 (0x600/0x580+id)"]
+    SDO2["SDO server 2 (wireless channel)"]
+    PDO["RPDO/TPDO, SYNC, EMCY, HB, NMT, LSS"]
+  end
+  COD2["CO_driver_hardfoc.c\n(CO_CANsend, rx dispatch, error status)"]
+  R["FrameRouter\nper-port RX allow-list, TX fan-out, rate limit"]
+  P0["Port 0: EspTwaiPort (classic)\nlater StmFdcanPort (FD)"]
+  P1["Port 1: TunnelPort Wi-Fi TLS"]
+  P2["Port 2: TunnelPort ESP-NOW"]
+  P3["Host: LinuxSocketCanPort / PipePort"]
+  stack &lt;--&gt; COD2 &lt;--&gt; R
+  R &lt;--&gt; P0
+  R &lt;--&gt; P1
+  R &lt;--&gt; P2
+  R &lt;--&gt; P3</code></pre>
+<p><code>contracts/can_frame.hpp</code>:</p>
+<div class="language-cpp highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">struct</span><span class="w"> </span><span class="nc">CanFrame</span><span class="w"> </span><span class="p">{</span><span class="w">             </span><span class="c1">// transport-neutral; FD-sized from day one</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">id</span><span class="p">;</span><span class="w">                </span><span class="c1">// 11- or 29-bit</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">  </span><span class="kt">uint8_t</span><span class="w">  </span><span class="n">len</span><span class="p">;</span><span class="w">               </span><span class="c1">// 0..8 classic, 0..64 FD (bytes, not DLC code)</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">  </span><span class="kt">uint8_t</span><span class="w">  </span><span class="n">flags</span><span class="p">;</span><span class="w">             </span><span class="c1">// EXT | RTR | FDF | BRS | ESI</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">  </span><span class="kt">uint8_t</span><span class="w">  </span><span class="n">data</span><span class="p">[</span><span class="mi">64</span><span class="p">];</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">  </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">ts_us</span><span class="p">;</span><span class="w">             </span><span class="c1">// RX timestamp (ISR-captured)</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="p">};</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="k">struct</span><span class="w"> </span><span class="nc">PortCaps</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">fd</span><span class="p">;</span><span class="w"> </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">max_len</span><span class="p">;</span><span class="w"> </span><span class="kt">uint32_t</span><span class="w"> </span><span class="n">nominal_bps</span><span class="p">,</span><span class="w"> </span><span class="n">data_bps</span><span class="p">;</span><span class="w"> </span><span class="kt">uint8_t</span><span class="w"> </span><span class="n">hw_filters</span><span class="p">;</span><span class="w"> </span><span class="p">};</span>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="k">class</span><span class="w"> </span><span class="nc">ICanPort</span><span class="w"> </span><span class="p">{</span><span class="w">              </span><span class="c1">// implemented per binding; Send is non-blocking</span>
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="w"> </span><span class="k">public</span><span class="o">:</span>
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="w">  </span><span class="k">virtual</span><span class="w"> </span><span class="n">PortCaps</span><span class="w"> </span><span class="n">Caps</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="w">  </span><span class="k">virtual</span><span class="w"> </span><span class="n">TxResult</span><span class="w"> </span><span class="nf">Send</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">CanFrame</span><span class="o">&amp;</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">            </span><span class="c1">// Ok | QueueFull | BusOff | NotAllowed</span>
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="w">  </span><span class="k">virtual</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">SetRxSink</span><span class="p">(</span><span class="kt">void</span><span class="w"> </span><span class="p">(</span><span class="o">*</span><span class="n">sink</span><span class="p">)(</span><span class="kt">void</span><span class="o">*</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">CanFrame</span><span class="o">&amp;</span><span class="p">),</span><span class="w"> </span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">ctx</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="c1">// ISR-safe sink</span>
+</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="w">  </span><span class="k">virtual</span><span class="w"> </span><span class="n">PortStatus</span><span class="w"> </span><span class="nf">Status</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">                 </span><span class="c1">// TEC/REC, state, overruns</span>
+</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="w">  </span><span class="k">virtual</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="nf">Recover</span><span class="p">()</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">                            </span><span class="c1">// bus-off recovery request</span>
+</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="p">};</span>
+</span></code></pre></div>
+<p>Router policy, as a table in contracts:</p>
+<table>
+<thead>
+<tr>
+<th>Port</th>
+<th>RX accepted</th>
+<th>TX sent</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CAN (0)</td>
+<td>everything except SDO-server-2 COB-IDs (dropped, so a CAN node cannot pose as the wireless client)</td>
+<td>everything except SDO-server-2 responses</td>
+<td>normal CANopen</td>
+</tr>
+<tr>
+<td>Wi-Fi / ESP-NOW tunnel</td>
+<td>SDO-server-2 requests. NMT and RPDO only if <code>0x2701 authority policy</code> allows</td>
+<td>SDO-server-2 responses, plus subscribed mirrors of HB, EMCY and selected TPDOs (rate-limited per port, default ≤ 100 Hz each)</td>
+<td>read-mostly by default</td>
+</tr>
+<tr>
+<td>Host sim (P3)</td>
+<td>as CAN</td>
+<td>as CAN</td>
+<td>CI</td>
+</tr>
+</tbody>
+</table>
+<p>SDO server 2 (0x1201) is predefined with <em>virtual</em> COB-IDs (client→server 0x6C0+id, server→client 0x5C0+id, documented as tunnel-only). These IDs never appear on the physical bus. For human or script access, the CiA 309-3 gateway (<code>CO_gateway_ascii.c</code>) uses CANopenNode's local SDO client (<code>CO_CONFIG_SDO_CLI_LOCAL</code>, <code>301/CO_config.h:401</code>), so ASCII commands for the node's own ID access the OD without bus traffic. Together this gives identical SDO semantics everywhere: the same abort codes, the same OD extension handlers and the same access checks.</p>
+<p>The C++ side has no 8-byte assumptions. <code>CO_CANrxMsg_t</code> and <code>CO_CANtx_t</code> in the new <code>CO_driver_target.h</code> carry <code>data[CO_CAN_MAX_LEN]</code>, which is 8 on classic builds and 64 on FD builds. The router rejects any frame longer than the destination port's <code>Caps().max_len</code>, and the PDO layer checks mapped length against <code>CO_PDO_MAX_SIZE</code> (§8).</p>
+<h3 id="44-threads-priorities-and-timing-on-the-single-core-c6">4.4 Threads, priorities and timing on the single-core C6<a class="headerlink" href="#44-threads-priorities-and-timing-on-the-single-core-c6" title="Permanent link">&para;</a></h3>
+<p>Platform facts: ESP32-C6, one HP RISC-V core at 160 MHz (<code>CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ=160</code>). ESP-IDF built-in priorities are Wi-Fi 23, esp_timer 22, event loop 20 and lwIP 18. Espressif reserves 24 for very short timing-critical bursts and advises that network-using tasks run below 18 (<a href="https://docs.espressif.com/projects/esp-idf/en/stable/esp32c6/api-guides/performance/speed.html">IDF speed guide</a>). Prerequisite: set <code>CONFIG_FREERTOS_HZ=1000</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Thread / context</th>
+<th>Prio</th>
+<th>Trigger / period</th>
+<th>Owns</th>
+<th>Budget</th>
+<th>Liveness</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>TWAI ISR</td>
+<td>ISR</td>
+<td>RX/TX/error</td>
+<td>none (copies to lock-free ring, timestamps, <code>Wake(drive_rt)</code> on SYNC/RPDO COB-IDs, <code>Wake(co_svc)</code> on others)</td>
+<td>&lt; 5 µs/frame</td>
+<td>n/a</td>
+</tr>
+<tr>
+<td>gptimer ISR</td>
+<td>ISR</td>
+<td>free-run tick when no SYNC is configured (default 1 ms)</td>
+<td>none</td>
+<td>&lt; 2 µs</td>
+<td>n/a</td>
+</tr>
+<tr>
+<td><code>drive_rt</code></td>
+<td>24</td>
+<td>SYNC (or gptimer) event; 2 ms backstop</td>
+<td><strong>SPI2</strong> (TMC9660, AS5047U), CiA 402 FSM, RPDO/TPDO processing</td>
+<td>WCET ≤ 300 µs at 1 kHz (step aborted to safe stop if &gt; 1 ms)</td>
+<td>critical, 5 ms</td>
+</tr>
+<tr>
+<td><code>safety</code></td>
+<td>21</td>
+<td>5 ms fixed rate</td>
+<td><code>LivenessMonitor</code>, <code>SafetyArbiter</code>, task-WDT feed</td>
+<td>≤ 50 µs</td>
+<td>n/a (it <em>is</em> the monitor; TWDT watches it)</td>
+</tr>
+<tr>
+<td><code>i2c_io</code></td>
+<td>19</td>
+<td>PCAL INT (GPIO23) events + 10 ms backstop</td>
+<td><strong>I2C</strong> (PCAL95555: DRV_EN, faults, CAN STB; BNO08x)</td>
+<td>blocking I/O, preemptible</td>
+<td>critical, 100 ms</td>
+</tr>
+<tr>
+<td><code>co_svc</code></td>
+<td>17</td>
+<td>CAN RX wake + 1 ms timer-next (CANopenNode <code>timerNext_us</code>)</td>
+<td><code>CO_process</code> (NMT, HB producer/consumer, EMCY, SDO servers incl. block, LSS, TIME), OD extensions, storage requests</td>
+<td>≤ 200 µs typical</td>
+<td>critical, 50 ms</td>
+</tr>
+<tr>
+<td><code>wl_gw</code></td>
+<td>15</td>
+<td>socket / ESP-NOW queue</td>
+<td>TLS tunnel, ESP-NOW peer table, optional 309-3</td>
+<td>—</td>
+<td>non-critical</td>
+</tr>
+<tr>
+<td><code>housekeep</code></td>
+<td>6</td>
+<td>100 ms</td>
+<td>fault-journal flush (only when motion is not enabled), LED, diagnostics, NVS writes</td>
+<td>—</td>
+<td>non-critical, 1 s</td>
+</tr>
+<tr>
+<td><code>app_main</code> supervisor</td>
+<td>1</td>
+<td>1 s</td>
+<td>boot orchestration (<code>VortexSystemThread</code> init table)</td>
+<td>—</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p>Notes:</p>
+<ul>
+<li><code>drive_rt</code> at 24 is short by construction. The TMC9660 runs the fast loops (PWM-rate current loop and internal velocity/position loops), so each cycle is about six TMCL SPI exchanges plus one AS5047U read. Commissioning and bulk configuration (hundreds of TMCL writes) go through a <strong>bounded service slot</strong> in the same thread: at most N transactions per cycle, default 2. The bus therefore keeps a single owner, and RT jitter stays bounded. This is the <code>RunInBackground</code> lesson from the pw threading model, applied to a single core.</li>
+<li>Blocking chip bring-up (TMC bootloader, BNO08x reset) runs at boot before <code>drive_rt</code> starts, or in the service slot. It never runs inline at priority 24.</li>
+<li><code>safety</code> sits below Wi-Fi and esp_timer. Its 5 ms deadline tolerates Wi-Fi bursts. The <em>fast</em> reactions do not depend on it: <code>drive_rt</code> enforces limits and stops on TMC fault flags in the same cycle, and the TMC9660 SPI heartbeat (§5.5) stops the motor if <code>drive_rt</code> itself stalls.</li>
+<li>Flash writes (NVS) stall cache-resident code on the C6. Storage is therefore <strong>refused while the drive is in Operation Enabled</strong>: 0x1010 returns SDO abort <code>0x08000022</code>, and journal writes are buffered in RAM (§6).</li>
+</ul>
+<p><code>drive_rt</code> cycle (cyclic synchronous modes):</p>
+<pre class="mermaid"><code>sequenceDiagram
+  participant M as Master (PC/PLC)
+  participant ISR as TWAI ISR
+  participant RT as drive_rt (24)
+  participant TMC as TMC9660 (SPI2)
+  M-&gt;&gt;ISR: RPDO (target) then SYNC
+  ISR-&gt;&gt;RT: Wake (SYNC timestamp t0)
+  RT-&gt;&gt;RT: drain RX ring, CO_process_SYNC, CO_process_RPDO
+  RT-&gt;&gt;RT: Cia402 step (rule table), limits, mode logic
+  RT-&gt;&gt;TMC: SAP target (pos/vel/torque) + GAP status/actuals (about 6 TMCL)
+  RT-&gt;&gt;RT: AS5047U read (1 frame), publish seqlock snapshot
+  RT-&gt;&gt;ISR: CO_process_TPDO (sync TPDOs queued, non-blocking)
+  ISR-&gt;&gt;M: TPDOs (actual values from cycle n-1 consistent set)
+  RT-&gt;&gt;RT: live::Beat(drive_rt), record step time</code></pre>
+<h3 id="45-timing-budget-at-1-mbits">4.5 Timing budget at 1 Mbit/s<a class="headerlink" href="#45-timing-budget-at-1-mbits" title="Permanent link">&para;</a></h3>
+<p>Classic base-format data frame with <em>n</em> data bytes: 47 + 8<em>n</em> bits nominal (including 3-bit IFS). Worst-case bit stuffing adds ⌊(34 + 8<em>n</em> − 1)/4⌋ bits. At 1 Mbit/s an 8-byte frame takes 111 µs nominal and 135 µs worst case. SYNC (0 bytes) takes 47–55 µs.</p>
+<p>Default CSP traffic per node per cycle: RPDO2 (controlword + target position, 6 B, ≤ 115 µs), TPDO2 (statusword + position actual, 6 B, ≤ 115 µs) and TPDO3 (statusword + velocity actual, 6 B, ≤ 115 µs). About 345 µs per node, plus a shared SYNC of 55 µs.</p>
+<table>
+<thead>
+<tr>
+<th>SYNC rate</th>
+<th>Nodes</th>
+<th>Worst-case bus time / cycle</th>
+<th>Bus load @ 1 Mbit/s</th>
+<th>@ 500 kbit/s</th>
+<th>Verdict</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1 kHz</td>
+<td>1</td>
+<td>400 µs</td>
+<td>40 %</td>
+<td>80 %</td>
+<td>OK at 1 M only</td>
+</tr>
+<tr>
+<td>1 kHz</td>
+<td>2</td>
+<td>745 µs</td>
+<td>75 %</td>
+<td>&gt;100 %</td>
+<td>marginal (avoid)</td>
+</tr>
+<tr>
+<td>500 Hz</td>
+<td>2</td>
+<td>745 µs</td>
+<td>37 %</td>
+<td>75 %</td>
+<td>OK</td>
+</tr>
+<tr>
+<td>500 Hz</td>
+<td>4</td>
+<td>1435 µs</td>
+<td>72 %</td>
+<td>&gt;100 %</td>
+<td>marginal</td>
+</tr>
+<tr>
+<td>250 Hz</td>
+<td>4</td>
+<td>1435 µs</td>
+<td>36 %</td>
+<td>72 %</td>
+<td>OK</td>
+</tr>
+<tr>
+<td>250 Hz</td>
+<td>8</td>
+<td>2815 µs</td>
+<td>70 %</td>
+<td>&gt;100 %</td>
+<td>marginal</td>
+</tr>
+</tbody>
+</table>
+<p>Planning rule: keep the worst case at or below 60 % of the cycle, leaving room for SDO, EMCY and HB. CPU estimate per 1 kHz cycle on the C6: RX drain about 20 µs, SYNC/RPDO/TPDO processing about 40 µs, FSM and limits about 10 µs, six TMCL exchanges at 10 MHz SPI about 150 µs (to be measured, about 25 µs each in polling mode), AS5047U about 15 µs. That is roughly 235 µs, or 24 % CPU. The TMC9660 samples targets in a ~1 kHz internal loop that is not phase-locked to SYNC (Erratum 4 note, <code>vortex_bench_safety.hpp:169</code>), so expect up to 1 ms of extra transport delay. <strong>1 kHz is the ceiling. 250–500 Hz is the recommended default for csp/csv/cst.</strong> 0x60C2 (interpolation time period) mirrors 0x1006, and <code>drive_rt</code> linearly interpolates targets when the SYNC period exceeds 1 ms.</p>
+<hr />
+<h2 id="5-object-dictionary-plan">5. Object dictionary plan<a class="headerlink" href="#5-object-dictionary-plan" title="Permanent link">&para;</a></h2>
+<p>Data types use CiA 301 names (U8/U16/U32/I16/I32/R32/VS/DOM). Access: <code>ro</code>, <code>rw</code>, <code>wo</code>, <code>const</code>. "Map" means PDO-mappable. Persist groups: C (communication, 0x1010:02), A (application, 0x1010:03), K (calibration, 0x1010:04, manufacturer-specific). The full sub-index tables live in the YAML. This section fixes the layout.</p>
+<h3 id="51-communication-profile-area-0x10000x1fff">5.1 Communication profile area (0x1000–0x1FFF)<a class="headerlink" href="#51-communication-profile-area-0x10000x1fff" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Index</th>
+<th>Name</th>
+<th>Notes</th>
+<th>Persist</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0x1000</td>
+<td>Device type</td>
+<td><code>0x00020192</code>: profile 402 (0x0192), additional info = servo drive type 0x0002 (verify against CiA 402-2 §device type)</td>
+<td>const</td>
+</tr>
+<tr>
+<td>0x1001</td>
+<td>Error register</td>
+<td>bit0 generic, 1 current, 2 voltage, 3 temperature, 4 communication, 5 profile, 7 manufacturer</td>
+<td>ro, map</td>
+</tr>
+<tr>
+<td>0x1003</td>
+<td>Pre-defined error field</td>
+<td>16 entries. Sub 0 write 0 clears</td>
+<td>—</td>
+</tr>
+<tr>
+<td>0x1005</td>
+<td>COB-ID SYNC</td>
+<td>0x80; consumer</td>
+<td>C</td>
+</tr>
+<tr>
+<td>0x1006</td>
+<td>Communication cycle period</td>
+<td>µs. Used for SYNC timeout (1.5×) and interpolation</td>
+<td>C</td>
+</tr>
+<tr>
+<td>0x1007</td>
+<td>Synchronous window length</td>
+<td>TPDOs not sent after window</td>
+<td>C</td>
+</tr>
+<tr>
+<td>0x1008 / 0x1009 / 0x100A</td>
+<td>Device name / HW version / SW version</td>
+<td>"HardFOC Vortex V1" / board rev / semver+git</td>
+<td>const</td>
+</tr>
+<tr>
+<td>0x1010</td>
+<td>Store parameters</td>
+<td>sub1 all, 2 comm, 3 app, 4 calibration. Signature <code>0x65766173</code> ("save"). Refused in Operation Enabled</td>
+<td>—</td>
+</tr>
+<tr>
+<td>0x1011</td>
+<td>Restore default parameters</td>
+<td>same subs, signature <code>0x64616F6C</code> ("load"). Takes effect after reset</td>
+<td>—</td>
+</tr>
+<tr>
+<td>0x1012</td>
+<td>COB-ID TIME</td>
+<td>0x100; consumer. Sets the fault-journal wall clock</td>
+<td>C</td>
+</tr>
+<tr>
+<td>0x1014 / 0x1015</td>
+<td>COB-ID EMCY / inhibit time EMCY</td>
+<td>0x80+id / default 10 (×100 µs)</td>
+<td>C</td>
+</tr>
+<tr>
+<td>0x1016</td>
+<td>Consumer heartbeat time</td>
+<td>4 entries (node-ID, ms). Required for motion unless an RPDO timeout is set (§5.5)</td>
+<td>C</td>
+</tr>
+<tr>
+<td>0x1017</td>
+<td>Producer heartbeat time</td>
+<td>default 100 ms</td>
+<td>C</td>
+</tr>
+<tr>
+<td>0x1018</td>
+<td>Identity</td>
+<td>vendor ID (Q1), product code <code>0x00560001</code>, revision <code>(major&lt;&lt;16)|minor</code> (bumped on OD change), serial = low 32 bits of the eFuse MAC (LSS address)</td>
+<td>const</td>
+</tr>
+<tr>
+<td>0x1019</td>
+<td>SYNC counter overflow</td>
+<td>0 (no counter) default</td>
+<td>C</td>
+</tr>
+<tr>
+<td>0x1029</td>
+<td>Error behaviour</td>
+<td>sub1 communication error → 0 = pre-operational (default); sub2 profile error → 1 = no change</td>
+<td>C</td>
+</tr>
+<tr>
+<td>0x1200</td>
+<td>SDO server 1</td>
+<td>predefined 0x600+id / 0x580+id</td>
+<td>—</td>
+</tr>
+<tr>
+<td>0x1201</td>
+<td>SDO server 2</td>
+<td>tunnel-only virtual COB-IDs (§4.3)</td>
+<td>C</td>
+</tr>
+<tr>
+<td>0x1280</td>
+<td>SDO client 1</td>
+<td>local only (309-3 gateway). Absent if the gateway is disabled</td>
+<td>—</td>
+</tr>
+<tr>
+<td>0x1400–0x1403</td>
+<td>RPDO1–4 communication</td>
+<td>COB-ID, transmission type, event timer (= RPDO timeout monitor)</td>
+<td>C</td>
+</tr>
+<tr>
+<td>0x1600–0x1603</td>
+<td>RPDO1–4 mapping</td>
+<td>≤ 8 entries (≤ 64 on FD build)</td>
+<td>C</td>
+</tr>
+<tr>
+<td>0x1800–0x1807</td>
+<td>TPDO1–8 communication</td>
+<td>COB-ID, type, inhibit, event timer, SYNC start</td>
+<td>C</td>
+</tr>
+<tr>
+<td>0x1A00–0x1A07</td>
+<td>TPDO1–8 mapping</td>
+<td></td>
+<td>C</td>
+</tr>
+<tr>
+<td>0x1F80</td>
+<td>NMT startup</td>
+<td>bit2 = 0: wait for NMT start (default). Option to self-start for stand-alone demos</td>
+<td>C</td>
+</tr>
+</tbody>
+</table>
+<p>LSS (CiA 305) has no OD objects. The node-ID and bit-rate are stored in their own NVS record (§6.3).</p>
+<h3 id="52-cia-402-axis-objects-axis-1-at-0x6000-axis-n-at-0x6000--0x800n1">5.2 CiA 402 axis objects (axis 1 at 0x6000; axis <em>n</em> at 0x6000 + 0x800·(<em>n</em>−1))<a class="headerlink" href="#52-cia-402-axis-objects-axis-1-at-0x6000-axis-n-at-0x6000--0x800n1" title="Permanent link">&para;</a></h3>
+<p>Supported modes (0x6502): bit0 pp, bit2 pv, bit3 tq, bit5 hm, bit7 csp, bit8 csv, bit9 cst → <code>0x000003AD</code>. Velocity mode vl (bit1) and ip (bit6) are not supported. ip is covered by csp with interpolation.</p>
+<table>
+<thead>
+<tr>
+<th>Index</th>
+<th>Name</th>
+<th>pp</th>
+<th>pv</th>
+<th>tq</th>
+<th>hm</th>
+<th>csp</th>
+<th>csv</th>
+<th>cst</th>
+<th>Map</th>
+<th>Implementation (TMC9660 / host)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0x603F</td>
+<td>Error code</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>T</td>
+<td>last EMCY code of this axis</td>
+</tr>
+<tr>
+<td>0x6040 / 0x6041</td>
+<td>Controlword / Statusword</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>R/T</td>
+<td>contracts rule table (§5.6)</td>
+</tr>
+<tr>
+<td>0x605A</td>
+<td>Quick stop option code</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td></td>
+<td>default 2 (quick-stop ramp → Switch On Disabled)</td>
+</tr>
+<tr>
+<td>0x605B / 0x605C</td>
+<td>Shutdown / disable operation option code</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td></td>
+<td>default 0 / 1</td>
+</tr>
+<tr>
+<td>0x605D</td>
+<td>Halt option code</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td></td>
+<td>default 1 (slow-down ramp)</td>
+</tr>
+<tr>
+<td>0x605E</td>
+<td>Fault reaction option code</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td></td>
+<td>default 0 (disable drive, coast). 2 = quick-stop ramp only for faults where the bridge is healthy</td>
+</tr>
+<tr>
+<td>0x6007</td>
+<td>Abort connection option code</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td></td>
+<td>default 1 (fault). 3 = quick stop</td>
+</tr>
+<tr>
+<td>0x6060 / 0x6061</td>
+<td>Modes of operation / display</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>R/T</td>
+<td>mode switch only in Switched On, or in OE with velocity ≈ 0</td>
+</tr>
+<tr>
+<td>0x6062 / 0x6064</td>
+<td>Position demand / actual</td>
+<td>✓</td>
+<td></td>
+<td></td>
+<td>✓</td>
+<td>✓</td>
+<td></td>
+<td></td>
+<td>T</td>
+<td>TMC <code>ACTUAL_POSITION</code> (selected position sensor)</td>
+</tr>
+<tr>
+<td>0x6065 / 0x6066</td>
+<td>Following error window / timeout</td>
+<td>✓</td>
+<td></td>
+<td></td>
+<td>✓</td>
+<td>✓</td>
+<td></td>
+<td></td>
+<td></td>
+<td>host-side check → EMCY 0x8611</td>
+</tr>
+<tr>
+<td>0x6067 / 0x6068</td>
+<td>Position window / time</td>
+<td>✓</td>
+<td></td>
+<td></td>
+<td>✓</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td>target-reached bit 10</td>
+</tr>
+<tr>
+<td>0x606B / 0x606C</td>
+<td>Velocity demand / actual</td>
+<td></td>
+<td>✓</td>
+<td></td>
+<td></td>
+<td></td>
+<td>✓</td>
+<td></td>
+<td>T</td>
+<td>TMC velocity, converted to inc/s</td>
+</tr>
+<tr>
+<td>0x606D / 0x606E</td>
+<td>Velocity window / time</td>
+<td></td>
+<td>✓</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>0x6071</td>
+<td>Target torque</td>
+<td></td>
+<td></td>
+<td>✓</td>
+<td></td>
+<td></td>
+<td></td>
+<td>✓</td>
+<td>R</td>
+<td>‰ of 0x6076 → TMC target torque mA via Kt and rated current</td>
+</tr>
+<tr>
+<td>0x6072 / 0x6073</td>
+<td>Max torque / max current</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td></td>
+<td>‰. Clamped against the catalog row and the board limit (§6.2)</td>
+</tr>
+<tr>
+<td>0x6075 / 0x6076</td>
+<td>Motor rated current / torque</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td>mA / mNm, from the catalog row</td>
+</tr>
+<tr>
+<td>0x6077 / 0x6078</td>
+<td>Torque / current actual</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>T</td>
+<td>‰</td>
+</tr>
+<tr>
+<td>0x6079</td>
+<td>DC link voltage</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>T</td>
+<td>mV (TMC supply ADC)</td>
+</tr>
+<tr>
+<td>0x607A</td>
+<td>Target position</td>
+<td>✓</td>
+<td></td>
+<td></td>
+<td></td>
+<td>✓</td>
+<td></td>
+<td></td>
+<td>R</td>
+<td></td>
+</tr>
+<tr>
+<td>0x607C</td>
+<td>Home offset</td>
+<td></td>
+<td></td>
+<td></td>
+<td>✓</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>0x607D</td>
+<td>Software position limit</td>
+<td>✓</td>
+<td></td>
+<td></td>
+<td></td>
+<td>✓</td>
+<td></td>
+<td></td>
+<td></td>
+<td>violation → 0x8612</td>
+</tr>
+<tr>
+<td>0x607E</td>
+<td>Polarity</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td></td>
+<td>maps to <code>MotorMechanics::invert_output</code></td>
+</tr>
+<tr>
+<td>0x607F / 0x6080</td>
+<td>Max profile velocity / max motor speed</td>
+<td>✓</td>
+<td>✓</td>
+<td></td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>0x6081 / 0x6083 / 0x6084</td>
+<td>Profile velocity / acceleration / deceleration</td>
+<td>✓</td>
+<td>✓</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td>TMC ramp generator</td>
+</tr>
+<tr>
+<td>0x6085</td>
+<td>Quick stop deceleration</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td></td>
+<td>TMC ramp with this deceleration on quick stop</td>
+</tr>
+<tr>
+<td>0x6086</td>
+<td>Motion profile type</td>
+<td>✓</td>
+<td>✓</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td>0 linear (TMC 8-point ramp parameters derived)</td>
+</tr>
+<tr>
+<td>0x6087</td>
+<td>Torque slope</td>
+<td></td>
+<td></td>
+<td>✓</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td>host-side slew</td>
+</tr>
+<tr>
+<td>0x608F / 0x6091 / 0x6092</td>
+<td>Position encoder resolution / gear ratio / feed constant</td>
+<td>✓</td>
+<td>✓</td>
+<td></td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td></td>
+<td></td>
+<td>user-unit scaling</td>
+</tr>
+<tr>
+<td>0x6098 / 0x6099 / 0x609A</td>
+<td>Homing method / speeds / acceleration</td>
+<td></td>
+<td></td>
+<td></td>
+<td>✓</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td>methods 17–30 (switches via TMC REF inputs), 33/34 (index), 35/37 (current position). Others abort <code>0x06090030</code></td>
+</tr>
+<tr>
+<td>0x60B0 / 0x60B1 / 0x60B2</td>
+<td>Position / velocity / torque offset</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>R</td>
+<td>feed-forward</td>
+</tr>
+<tr>
+<td>0x60C2</td>
+<td>Interpolation time period</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td></td>
+<td>mirrors 0x1006</td>
+</tr>
+<tr>
+<td>0x60E0 / 0x60E1</td>
+<td>Positive / negative torque limit</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>0x60E4</td>
+<td>Additional position actual value</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>T</td>
+<td>sub1 = AS5047U multi-turn counts (host encoder)</td>
+</tr>
+<tr>
+<td>0x60F4</td>
+<td>Following error actual value</td>
+<td>✓</td>
+<td></td>
+<td></td>
+<td></td>
+<td>✓</td>
+<td></td>
+<td></td>
+<td>T</td>
+<td></td>
+</tr>
+<tr>
+<td>0x60FD / 0x60FE</td>
+<td>Digital inputs / outputs</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>T/R</td>
+<td>bit0 neg. limit, bit1 pos. limit, bit2 home (TMC REF), bits 16+ = board spare inputs</td>
+</tr>
+<tr>
+<td>0x60FF</td>
+<td>Target velocity</td>
+<td></td>
+<td>✓</td>
+<td></td>
+<td></td>
+<td></td>
+<td>✓</td>
+<td></td>
+<td>R</td>
+<td>inc/s → TMC velocity units</td>
+</tr>
+<tr>
+<td>0x6402 / 0x6403 / 0x6404</td>
+<td>Motor type / catalog number / manufacturer</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td>from catalog row (0x6402 values per CiA 402-2, e.g. 10 = sinusoidal PM brushless, 11 = trapezoidal, 9 = micro-step stepper; verify table)</td>
+</tr>
+<tr>
+<td>0x6502</td>
+<td>Supported drive modes</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td><code>0x000003AD</code></td>
+</tr>
+</tbody>
+</table>
+<p>Multi-axis: a second or third TMC9660 on <code>EXT_GPIO_CS_1/2</code> (<code>MotorController</code> slots &#8532;) appears as CiA 402 axis 2 at 0x6800 and axis 3 at 0x7000. Each axis has its own device type at 0x67FF / 0x6FFF and its own manufacturer block (§5.3). One <code>drive_rt</code> serves all axes. The SPI budget grows by about 150 µs per extra axis, so 3 axes are realistic only at 500 Hz or slower.</p>
+<p>CiA 406 (encoder profile) uses the same 0x6000–0x67FF window as CiA 402 axis 1, so a combined device would need an extra logical device. The host AS5047U is therefore exposed through 0x60E4 plus a manufacturer block that follows the CiA 406 <em>naming</em> (position value, speed value, singleturn resolution, alarms, warnings). This keeps masters that understand 406 semantics easy to configure without consuming a logical device. CiA 410 (inclinometer) covers slope angles only, not quaternions, angular rate or magnetic field, so the IMU goes in the manufacturer area.</p>
+<h3 id="53-manufacturer-area-0x20000x5fff">5.3 Manufacturer area (0x2000–0x5FFF)<a class="headerlink" href="#53-manufacturer-area-0x20000x5fff" title="Permanent link">&para;</a></h3>
+<p>Board-level objects are at 0x2000–0x2FFF. Axis-level objects are at 0x3000 + 0x400·(axis−1). The journal and service objects are at 0x4000–0x4FFF. Meta objects are at 0x5F00–0x5FFF.</p>
+<table>
+<thead>
+<tr>
+<th>Index</th>
+<th>Name</th>
+<th>Content (sub-indices abbreviated)</th>
+<th>Map</th>
+<th>Persist</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0x2000</td>
+<td>Firmware build</td>
+<td>VS app version, VS git SHAs (HAL, core, drivers, CANopenNode from <code>HF_HAL_GIT_SHA_*</code>), U32 build time, VS IDF version</td>
+<td></td>
+<td>const</td>
+</tr>
+<tr>
+<td>0x2001</td>
+<td>Board info</td>
+<td>U8 HW revision, 6-byte MAC, U32 reset reason, U32 uptime s, U32 free heap</td>
+<td></td>
+<td>ro</td>
+</tr>
+<tr>
+<td>0x2002</td>
+<td>Component versions</td>
+<td>TMC9660 FW/bootloader id, BNO08x SH-2 version, AS5047U id</td>
+<td></td>
+<td>ro</td>
+</tr>
+<tr>
+<td>0x2100</td>
+<td>Encoder (AS5047U) control</td>
+<td>U8 enable, U16 zero position, U8 direction, U8 ABI resolution bits, U8 DAEC enable</td>
+<td></td>
+<td>K</td>
+</tr>
+<tr>
+<td>0x2101</td>
+<td>Encoder status</td>
+<td>U16 angle raw, U16 angle compensated, I16 velocity raw, I32 multi-turn position, U8 AGC, U16 magnitude, U16 error flags, U32 comm errors</td>
+<td>T</td>
+<td>ro</td>
+</tr>
+<tr>
+<td>0x2200</td>
+<td>IMU control</td>
+<td>U16 enabled-report mask, U16 rate per report (Hz): rotation vector, game RV, accel, gyro, mag, linear accel, gravity; U8 interrupt mode</td>
+<td></td>
+<td>A</td>
+</tr>
+<tr>
+<td>0x2201–0x2207</td>
+<td>IMU values (R32 SI)</td>
+<td>quaternion (i, j, k, real, accuracy rad), accel m/s², gyro rad/s, mag µT, linear accel, gravity, Euler deg</td>
+<td></td>
+<td>ro</td>
+</tr>
+<tr>
+<td>0x2210</td>
+<td>IMU packed quaternion</td>
+<td>4×I16 Q14 (8 B, one TPDO)</td>
+<td>T</td>
+<td>ro</td>
+</tr>
+<tr>
+<td>0x2211</td>
+<td>IMU packed accel + seq</td>
+<td>3×I16 (1/256 m/s²) + U16 sample counter</td>
+<td>T</td>
+<td>ro</td>
+</tr>
+<tr>
+<td>0x2212</td>
+<td>IMU packed gyro + status</td>
+<td>3×I16 (1/1024 rad/s) + U8 calibration status + U8 accuracy</td>
+<td>T</td>
+<td>ro</td>
+</tr>
+<tr>
+<td>0x2220</td>
+<td>IMU calibration</td>
+<td>U8 status per sensor (0–3), command: 1 save DCD, 2 tare, 3 reset</td>
+<td></td>
+<td>—</td>
+</tr>
+<tr>
+<td>0x2300</td>
+<td>Temperatures</td>
+<td>I16 0.1 °C: NTC (TMC AIN3), TMC chip, ESP32 die, motor (if fitted)</td>
+<td>T</td>
+<td>ro</td>
+</tr>
+<tr>
+<td>0x2301</td>
+<td>Power</td>
+<td>U16 mV supply, U16 mV driver, BOOL power-good (PCAL P6)</td>
+<td>T</td>
+<td>ro</td>
+</tr>
+<tr>
+<td>0x2302</td>
+<td>Thermal limits</td>
+<td>warning/fault thresholds per sensor</td>
+<td></td>
+<td>A</td>
+</tr>
+<tr>
+<td>0x2400</td>
+<td>Spare GPIO config</td>
+<td>per line: direction, pull, function (none, input, output, limit/home mirror) for PCAL P0/P7/P8/P9, TMC GPIO17/18</td>
+<td></td>
+<td>A</td>
+</tr>
+<tr>
+<td>0x2401 / 0x2402</td>
+<td>Spare GPIO inputs / outputs</td>
+<td>bitfields</td>
+<td>T/R</td>
+<td>ro/rw</td>
+</tr>
+<tr>
+<td>0x2410</td>
+<td>Expansion slots</td>
+<td>per <code>EXT_GPIO_CS_1/2</code>: U8 role (0 none, 1 external TMC9660 axis, 2 external AS5047U, 3 raw SPI), U32 SPI clock</td>
+<td></td>
+<td>A (applied at boot)</td>
+</tr>
+<tr>
+<td>0x2411</td>
+<td>Expansion UART</td>
+<td>U8 role (0 none, 1 TMCL bridge, 2 debug console), U32 baud</td>
+<td></td>
+<td>A</td>
+</tr>
+<tr>
+<td>0x2500</td>
+<td>LED</td>
+<td>U8 mode (0 CiA 303-3 status emulation, 1 manual, 2 off), U32 RGB, U8 brightness</td>
+<td></td>
+<td>A</td>
+</tr>
+<tr>
+<td>0x2600</td>
+<td>Wireless config</td>
+<td>enable mask (Wi-Fi, ESP-NOW, BLE), TLS port, ESP-NOW channel, peer MACs</td>
+<td></td>
+<td>A</td>
+</tr>
+<tr>
+<td>0x2601</td>
+<td>Wireless secrets (wo)</td>
+<td>Wi-Fi SSID/pass, TLS PSK identity/key, ESP-NOW PMK/LMK. Write-only, read returns abort <code>0x06010001</code></td>
+<td></td>
+<td>A (separate NVS key)</td>
+</tr>
+<tr>
+<td>0x2602</td>
+<td>Wireless status</td>
+<td>link state, RSSI, peer count, frames in/out, auth failures</td>
+<td></td>
+<td>ro</td>
+</tr>
+<tr>
+<td>0x2700</td>
+<td>Control authority</td>
+<td>U8 current owner (0 none, 1 CAN, 2 Wi-Fi, 3 ESP-NOW), U8 request</td>
+<td></td>
+<td>—</td>
+</tr>
+<tr>
+<td>0x2701</td>
+<td>Authority policy</td>
+<td>U8 allowed enable transports (bitmask, default CAN only), U16 wireless deadman ms (default 200), BOOL require master liveness (default 1)</td>
+<td></td>
+<td>A</td>
+</tr>
+<tr>
+<td>0x2800</td>
+<td>Parameter store meta</td>
+<td>U32 store count, U32 last store result, schema/OD hash at last store</td>
+<td></td>
+<td>ro</td>
+</tr>
+<tr>
+<td>0x3000</td>
+<td>Axis motor selection</td>
+<td>U16 catalog row id (0 = none), VS row name</td>
+<td></td>
+<td>A</td>
+</tr>
+<tr>
+<td>0x3001</td>
+<td>Motor parameters</td>
+<td>type (TMC enum), pole pairs, rated/peak current mA, Rs mΩ, Ls µH, Kt mNm/A, max speed rpm, PWM Hz, PWM scheme, output voltage limit</td>
+<td></td>
+<td>A</td>
+</tr>
+<tr>
+<td>0x3002</td>
+<td>Power-stage / gate driver</td>
+<td>gate currents, dead time, shunt mΩ, CSA gain, OC thresholds (from <code>PowerStageProfile</code>)</td>
+<td></td>
+<td>A</td>
+</tr>
+<tr>
+<td>0x3003</td>
+<td>Feedback selection</td>
+<td>commutation mode (TMC enum), velocity sensor, position sensor, ABN CPR, ABN direction, Hall order/offset, SPI-encoder config, host-encoder role (none / alignment reference / output-shaft absolute)</td>
+<td></td>
+<td>A/K</td>
+</tr>
+<tr>
+<td>0x3004</td>
+<td>Current loop</td>
+<td>torque/flux Kp, Ki, normalisation</td>
+<td></td>
+<td>A</td>
+</tr>
+<tr>
+<td>0x3005</td>
+<td>Velocity loop</td>
+<td>Kp, Ki, filter, scaling</td>
+<td></td>
+<td>A</td>
+</tr>
+<tr>
+<td>0x3006</td>
+<td>Position loop</td>
+<td>Kp, Ki/scaling</td>
+<td></td>
+<td>A</td>
+</tr>
+<tr>
+<td>0x3007</td>
+<td>Protection</td>
+<td>OV, UV thresholds, I²t (two windows), OT warn/fault, stop-event config, retry behaviour</td>
+<td></td>
+<td>A</td>
+</tr>
+<tr>
+<td>0x3008</td>
+<td>Brake</td>
+<td>enable, release/hold timings, chopper</td>
+<td></td>
+<td>A</td>
+</tr>
+<tr>
+<td>0x3009</td>
+<td>Mechanics</td>
+<td>gear ratio (R32), invert</td>
+<td></td>
+<td>A</td>
+</tr>
+<tr>
+<td>0x3010</td>
+<td>Motor catalog (ro)</td>
+<td>sub <em>n</em>: VS name of built-in row <em>n</em></td>
+<td></td>
+<td>const</td>
+</tr>
+<tr>
+<td>0x3020</td>
+<td>Commissioning command</td>
+<td>U8: 1 ADC offset cal, 2 direction/polarity check, 3 pole-pair/CPR check, 4 Hall learn, 5 encoder align, 6 R/L estimate, 7 current-loop tune, 8 velocity-loop tune, 0x80 accept results, 0xFF abort</td>
+<td></td>
+<td>—</td>
+</tr>
+<tr>
+<td>0x3021</td>
+<td>Commissioning status</td>
+<td>U8 state (idle/running/done/failed), U8 step, U8 progress %, U16 failure code</td>
+<td>T</td>
+<td>ro</td>
+</tr>
+<tr>
+<td>0x3022</td>
+<td>Commissioning results</td>
+<td>measured values (offsets, R, L, pole pairs, CPR, Hall map, align offset, suggested gains)</td>
+<td></td>
+<td>K after accept</td>
+</tr>
+<tr>
+<td>0x3030</td>
+<td>Axis diagnostics</td>
+<td>TMC general error flags (U32), gate-driver flags (U32), ADC clip flags, TMC heartbeat status</td>
+<td>T</td>
+<td>ro</td>
+</tr>
+<tr>
+<td>0x4000</td>
+<td>Fault journal header</td>
+<td>count, head, capacity (64), overflow count</td>
+<td></td>
+<td>ro</td>
+</tr>
+<tr>
+<td>0x4001</td>
+<td>Fault journal</td>
+<td 402="402" EMCY="EMCY" ER_="ER," NMT="NMT" TIME-synced="TIME-synced" axis_="axis," cause="cause" code_="code," current_="current," flags_="flags," i16="i16" i32="i32" id_="id," ms_="ms," pos_="pos," raw="raw" state_="state," temps_2_="temps[2]…" u16="u16" u32="u32" u64="u64" u8="u8" uptime_ms_="uptime_ms," vel_="vel,">DOM, read by segmented/block SDO. Each entry is 32 B:</td>
+<td></td>
+<td>NVS ring</td>
+</tr>
+<tr>
+<td>0x4002</td>
+<td>Fault journal clear</td>
+<td>write <code>0x726C6300</code> ("clr")</td>
+<td></td>
+<td>—</td>
+</tr>
+<tr>
+<td>0x4003</td>
+<td>Active causes</td>
+<td>U32 bitmask from <code>FaultBook</code>, U32 escalated</td>
+<td>T</td>
+<td>ro</td>
+</tr>
+<tr>
+<td>0x4100</td>
+<td>TMC parameter bridge</td>
+<td>{U8 bank, U16 param id, I32 value, U8 op get/set, U8 status}. Service-only (§6.6)</td>
+<td></td>
+<td>—</td>
+</tr>
+<tr>
+<td>0x4200</td>
+<td>Thread stats</td>
+<td>per thread: last/max step µs, overruns, liveness stale mask</td>
+<td></td>
+<td>ro</td>
+</tr>
+<tr>
+<td>0x4201</td>
+<td>Timing histogram</td>
+<td>SYNC-to-step-start jitter buckets, RT step WCET buckets</td>
+<td></td>
+<td>ro</td>
+</tr>
+<tr>
+<td>0x4202</td>
+<td>CAN stats</td>
+<td>TEC, REC, state, bus-off count, RX overruns, TX queue full, router drops per port</td>
+<td></td>
+<td>ro</td>
+</tr>
+<tr>
+<td>0x5FFE</td>
+<td>OD layout hash</td>
+<td>U32 CRC of the generated OD description</td>
+<td></td>
+<td>const</td>
+</tr>
+<tr>
+<td>0x5FFF</td>
+<td>Manufacturer OD version</td>
+<td>U16 major.minor</td>
+<td></td>
+<td>const</td>
+</tr>
+</tbody>
+</table>
+<h3 id="54-default-pdo-mappings">5.4 Default PDO mappings<a class="headerlink" href="#54-default-pdo-mappings" title="Permanent link">&para;</a></h3>
+<p>All PDOs are runtime-remappable in Pre-operational using the CiA 301 procedure: set COB-ID bit 31, set mapping sub0 = 0, write entries, set sub0 = <em>n</em>, clear bit 31. Mapping is limited to objects flagged mappable in the YAML, at most 8 entries, and the classic length limit of 8 bytes. The tool ships named profiles that apply a whole set in one command (§9.2).</p>
+<table>
+<thead>
+<tr>
+<th>PDO</th>
+<th>COB-ID</th>
+<th>Mapping</th>
+<th>Type</th>
+<th>Use</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>RPDO1</td>
+<td>0x200+id</td>
+<td>0x6040, 0x6060 (3 B)</td>
+<td>255 async</td>
+<td>all modes; state and mode changes</td>
+</tr>
+<tr>
+<td>RPDO2</td>
+<td>0x300+id</td>
+<td>0x6040, 0x607A (6 B)</td>
+<td>1 (sync)</td>
+<td>pp (async 255 allowed) / csp</td>
+</tr>
+<tr>
+<td>RPDO3</td>
+<td>0x400+id</td>
+<td>0x6040, 0x60FF (6 B)</td>
+<td>1</td>
+<td>pv / csv</td>
+</tr>
+<tr>
+<td>RPDO4</td>
+<td>0x500+id</td>
+<td>0x6040, 0x6071 (4 B)</td>
+<td>1</td>
+<td>tq / cst</td>
+</tr>
+<tr>
+<td>TPDO1</td>
+<td>0x180+id</td>
+<td>0x6041, 0x6061 (3 B)</td>
+<td>254, inhibit 10 ms, event 100 ms</td>
+<td>state</td>
+</tr>
+<tr>
+<td>TPDO2</td>
+<td>0x280+id</td>
+<td>0x6041, 0x6064 (6 B)</td>
+<td>1</td>
+<td>position modes</td>
+</tr>
+<tr>
+<td>TPDO3</td>
+<td>0x380+id</td>
+<td>0x6041, 0x606C (6 B)</td>
+<td>1</td>
+<td>velocity modes</td>
+</tr>
+<tr>
+<td>TPDO4</td>
+<td>0x480+id</td>
+<td>0x6077, 0x603F, 0x2300:01, 0x2301:01 (8 B)</td>
+<td>254, event 100 ms</td>
+<td>torque, error, temperature, supply</td>
+</tr>
+<tr>
+<td>TPDO5</td>
+<td>disabled (0x80000000 | 0x1C0+id)</td>
+<td>0x2210 (8 B)</td>
+<td>254, event 10 ms</td>
+<td>IMU quaternion</td>
+</tr>
+<tr>
+<td>TPDO6</td>
+<td>disabled</td>
+<td>0x2211 (8 B)</td>
+<td>254, event 10 ms</td>
+<td>accel</td>
+</tr>
+<tr>
+<td>TPDO7</td>
+<td>disabled</td>
+<td>0x2212 (8 B)</td>
+<td>254, event 10 ms</td>
+<td>gyro</td>
+</tr>
+<tr>
+<td>TPDO8</td>
+<td>disabled</td>
+<td>0x2101:01, 0x2101:03, 0x2101:07 (6 B)</td>
+<td>254, event 10 ms</td>
+<td>host encoder</td>
+</tr>
+</tbody>
+</table>
+<p>TPDO5–8 have no predefined connection-set COB-IDs. The suggested IDs are documented, and enabling them is an explicit configuration step (the <code>imu-stream</code> profile). RPDO2–4 have an RPDO timeout (event timer sub5) of 0 by default. The tool profiles set it to 3× the cycle.</p>
+<h3 id="55-liveness-requirements-for-motion">5.5 Liveness requirements for motion<a class="headerlink" href="#55-liveness-requirements-for-motion" title="Permanent link">&para;</a></h3>
+<p>The drive refuses transition 4 (Switched On → Operation Enabled) with status bit 7 (warning) and EMCY <code>0x8100</code> unless at least one of these holds:</p>
+<ul>
+<li>0x1016 consumes a heartbeat (≤ 500 ms), or</li>
+<li>the active mode's RPDO has an event timer (RPDO timeout), or</li>
+<li>the mode is cyclic and 0x1006 is non-zero (SYNC timeout monitored).</li>
+</ul>
+<p>This applies when 0x2701:03 "require master liveness" = 1 (the default). The deadman therefore always exists. Loss of any configured liveness source triggers the 0x6007 reaction: default 1 = Fault, which applies 0x605E. 0x1029:01 drives the NMT reaction. CANopenNode raises its own EMCYs (heartbeat consumer timeout, SYNC timeout, RPDO timeout) through <code>CO_EM</code>. The node translates them into <code>FaultBook</code> causes, so the 402 reaction and the journal entry come from the same table.</p>
+<p>Additionally, the TMC9660 SPI heartbeat monitor is enabled (<code>HEARTBEAT_MONITORING_CONFIG = SPI</code>, timeout 20 ms; <code>tmc9660_param_mode_tmcl.hpp:460</code>). <code>drive_rt</code> exchanges with the chip at least every cycle, and at ≥ 100 Hz when idle. If the ESP32 hangs, crashes or is held in reset, the TMC9660 stops the bridge on its own (<code>HEARTBEAT_STOPPED</code> flag) with the configured stop behaviour. That is the independent hardware path.</p>
+<h3 id="56-cia-402-state-machine-as-a-rule-table">5.6 CiA 402 state machine as a rule table<a class="headerlink" href="#56-cia-402-state-machine-as-a-rule-table" title="Permanent link">&para;</a></h3>
+<pre class="mermaid"><code>stateDiagram-v2
+  [*] --&gt; NotReadyToSwitchOn
+  NotReadyToSwitchOn --&gt; SwitchOnDisabled: 1 (self-test ok)
+  SwitchOnDisabled --&gt; ReadyToSwitchOn: 2 shutdown
+  ReadyToSwitchOn --&gt; SwitchedOn: 3 switch on (config applied, limits valid)
+  SwitchedOn --&gt; OperationEnabled: 4 enable op (liveness gate, authority gate)
+  OperationEnabled --&gt; SwitchedOn: 5 disable op (0x605C)
+  SwitchedOn --&gt; ReadyToSwitchOn: 6 shutdown
+  ReadyToSwitchOn --&gt; SwitchOnDisabled: 7 quick stop / disable voltage
+  OperationEnabled --&gt; ReadyToSwitchOn: 8 shutdown (0x605B)
+  OperationEnabled --&gt; SwitchOnDisabled: 9 disable voltage
+  SwitchedOn --&gt; SwitchOnDisabled: 10
+  OperationEnabled --&gt; QuickStopActive: 11 quick stop (0x605A)
+  QuickStopActive --&gt; SwitchOnDisabled: 12 stop done / disable voltage
+  QuickStopActive --&gt; OperationEnabled: 16 enable op (only option codes 5..8)
+  OperationEnabled --&gt; FaultReactionActive: 13 fault
+  SwitchedOn --&gt; FaultReactionActive: 13
+  ReadyToSwitchOn --&gt; FaultReactionActive: 13
+  FaultReactionActive --&gt; Fault: 14 reaction done (0x605E)
+  Fault --&gt; SwitchOnDisabled: 15 fault reset (cw bit7 rising, cause cleared)</code></pre>
+<p><code>contracts/cia402_rules.hpp</code> implements <code>constexpr Decision Decide(State, ControlwordCmd, Inputs)</code>. <code>Inputs</code> carries: fault active, authority ok, liveness ok, configuration valid, quick-stop done, velocity below threshold. It follows the pattern of <code>pw_shared/system/clinical_lifecycle.hpp:166</code>: a single documented table, pure and host-tested. Controlword decode uses CiA 402 masks (shutdown <code>xxxx x110</code>, switch on <code>0111</code>, enable <code>1111</code>, disable voltage <code>xx0x</code>, quick stop <code>x01x</code>, fault reset bit 7 edge). Statusword encode covers bits 0–6 per state, bit 7 warning, bit 9 remote (set when the controlword source holds authority), bit 10 target reached, bit 11 internal limit active and bits 12/13 per mode (pp: set-point ack / following error; hm: attained / error; csp/csv/cst: target ignored / following error). Transition 3 is where the OD application parameters are validated and pushed to the TMC9660, in the service slot. Transition 4 sets the commutation mode and asserts <code>DRV_EN</code>. Transitions out of Operation Enabled first set the TMC target to zero or ramp per the option code, and then switch commutation to <code>SYSTEM_OFF</code> or <code>SYSTEM_OFF_LOW_SIDE_FETS_ON</code> as the option code requires.</p>
+<hr />
+<h2 id="6-motor-agnostic-drive-faults-and-persistence">6. Motor-agnostic drive, faults and persistence<a class="headerlink" href="#6-motor-agnostic-drive-faults-and-persistence" title="Permanent link">&para;</a></h2>
+<h3 id="61-motor-and-feedback-catalog">6.1 Motor and feedback catalog<a class="headerlink" href="#61-motor-and-feedback-catalog" title="Permanent link">&para;</a></h3>
+<p>The approach follows <code>pw-controller-sw/docs/software/bldc-motor-catalog.md</code>: numbers live in one header of catalog rows. A SKU swap means picking a row id or uploading a custom row, never hunting through code.</p>
+<ul>
+<li><code>hal/.../config/VortexMotorCatalog.hpp</code> holds <code>constexpr</code> rows: id, slug, <code>tmcl::MotorType</code>, pole pairs, rated/peak mA, Rs, Ls, Kt, max rpm, PWM Hz, default commutation, Hall/ABN data, safe tuning seeds. Row 0 is <code>none</code>. Row 1 is <code>bench_24v_30w_bldc</code>, seeded from <code>vortex_bench_safety.hpp</code>: 7 pole pairs, 390 µH, 25 kHz, 2.5 A max phase, I²t 2.5 A/2 s and 2.0 A/5 s. Further rows: <code>generic_nema17_stepper</code>, <code>generic_brushed_dc</code>, <code>custom</code> (all values from 0x3001–0x3008).</li>
+<li>0x3000 selects a row. Selecting copies the row into 0x3001–0x3008 (application group), and the user may then edit. The OD stays the truth: the TMC9660's own NVM (<code>NvmStorage</code>) is not used. The chip is re-programmed from the OD at every transition 3.</li>
+<li>Feedback choices map to the TMC enums. Commutation: open-loop voltage/current, ABN, Hall, SPI encoder. Velocity and position sensors: same-as-commutation, Hall, ABN1, ABN2, SPI. The host AS5047U can serve as (a) an alignment and verification reference during commissioning, (b) an output-shaft absolute position in 0x60E4 (with 0x3009 gear ratio) for homing method 35/37 seeding, and &copy; a plausibility monitor (commutation encoder vs. host encoder divergence → EMCY 0x7300-class). It cannot close the TMC loop unless the board routes it to the TMC SPI-encoder or ABI pins (Q5).</li>
+<li>The Hall/ABN bootloader mux (<code>BootloaderConfig</code>) depends on the board. It is a build-time board fact, held in the catalog's board section, not an OD object. Changing 0x3003 to a feedback whose pins are not muxed is rejected with SDO abort <code>0x06090030</code> (value range) and a hint code in 0x3021.</li>
+</ul>
+<h3 id="62-safe-defaults-and-limit-enforcement">6.2 Safe defaults and limit enforcement<a class="headerlink" href="#62-safe-defaults-and-limit-enforcement" title="Permanent link">&para;</a></h3>
+<ul>
+<li>With factory defaults, row 0 (<code>none</code>) refuses transition 3 with EMCY 0x6320 ("parameter error") until a row is selected and stored.</li>
+<li>Limits clamp in three layers, and the effective value is the minimum: board limit (compile-time: shunt, MOSFET, connector rating) ≥ catalog row peak ≥ 0x6073/0x6072/0x60E0/0x60E1. Writes beyond the board limit abort with <code>0x06090031</code> (value too high).</li>
+<li>TMC protection (OV/UV, OT, OC, I²t) is always programmed from 0x3007 before <code>DRV_EN</code>.</li>
+<li>Torque mode (tq/cst) needs an explicit 0x6080 max motor speed. Exceeding it triggers quick stop with EMCY 0x8400-class ("velocity speed controller"), which prevents unloaded runaway (see the bench warning in <code>BLDC_BRINGUP.md:71</code>).</li>
+</ul>
+<h3 id="63-commissioning-flow">6.3 Commissioning flow<a class="headerlink" href="#63-commissioning-flow" title="Permanent link">&para;</a></h3>
+<pre class="mermaid"><code>flowchart LR
+  A["select row 0x3000\nor write custom 0x3001-0x3008"] --&gt; B["0x3020=1 ADC offsets"]
+  B --&gt; C["0x3020=2 direction check\n(open-loop, small current)"]
+  C --&gt; D["0x3020=3 pole pairs / CPR\n(N electrical turns vs host encoder)"]
+  D --&gt; E{"feedback"}
+  E --&gt;|Hall| F["0x3020=4 Hall learn"]
+  E --&gt;|ABN/SPI| G["0x3020=5 encoder align"]
+  E --&gt;|open-loop| H["skip"]
+  F --&gt; I["0x3020=6 R/L estimate (optional)"]
+  G --&gt; I
+  H --&gt; I
+  I --&gt; J["0x3020=7 current-loop tune\nKp = L*wc, Ki = R*wc (TMC units)"]
+  J --&gt; K["0x3020=8 velocity-loop tune\n(step test, bounded)"]
+  K --&gt; L["0x3020=0x80 accept -&gt; 0x3001-0x3006"]
+  L --&gt; M["0x1010:03 / :04 save"]</code></pre>
+<p>Procedures run only in Switched On, with authority held by the requesting transport. They obey reduced limits (≤ 30 % rated current, ≤ 10 % max speed, ≤ 2 s per step) and abort on any fault or controlword change. Each step is a small state machine in the <code>drive_rt</code> service slot. Results land in 0x3022 and are applied only on "accept".</p>
+<h3 id="64-fault-funnel-and-emcy-mapping">6.4 Fault funnel and EMCY mapping<a class="headerlink" href="#64-fault-funnel-and-emcy-mapping" title="Permanent link">&para;</a></h3>
+<pre class="mermaid"><code>flowchart LR
+  TMC["TMC flags (GAP each cycle)"] --&gt; FB["FaultBook (contracts policy table)"]
+  CAN["CANopenNode CO_EM errors\n(HB, SYNC, RPDO timeout, bus-off)"] --&gt; FB
+  SENS["sensors: AS5047U diag, BNO08x,\nNTC, PCAL fault/power-good"] --&gt; FB
+  LIVE["LivenessMonitor stale mask"] --&gt; FB
+  FB --&gt; ARB["SafetyArbiter: class -&gt; reaction"]
+  ARB --&gt; D402["Cia402 Inputs (fault / quick stop)"]
+  ARB --&gt; EM["CO_errorReport -&gt; EMCY + 0x1001 + 0x1003"]
+  ARB --&gt; J["Journal (RAM ring -&gt; NVS when not OE)"]
+  ARB --&gt; HW["immediate: TMC SYSTEM_OFF, DRV_EN low (i2c_io)"]</code></pre>
+<p>Policy table (<code>contracts/vortex_fault_policy.hpp</code>, one row per cause). EMCY bytes 3–7 carry {cause id, raw flags u32}.</p>
+<table>
+<thead>
+<tr>
+<th>Cause</th>
+<th>Source</th>
+<th>EMCY code</th>
+<th>ER bits</th>
+<th>Class → reaction</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Phase/low/high-side overcurrent, short</td>
+<td>TMC gate-driver flags</td>
+<td>0x2320 short circuit / 0x2310 overcurrent</td>
+<td>0,1</td>
+<td>Disable now (bridge off), 402 Fault</td>
+</tr>
+<tr>
+<td>I²t limit &frac12; exceeded</td>
+<td>TMC general flags 16/17</td>
+<td>0x2310</td>
+<td>0,1</td>
+<td>Fault (0x605E)</td>
+</tr>
+<tr>
+<td>Supply overvoltage</td>
+<td>TMC OV / 0x2301</td>
+<td>0x3210 DC-link overvoltage</td>
+<td>0,2</td>
+<td>Disable now</td>
+</tr>
+<tr>
+<td>Supply undervoltage, power-good lost</td>
+<td>TMC UV, PCAL P6</td>
+<td>0x3220 DC-link undervoltage</td>
+<td>0,2</td>
+<td>Fault</td>
+</tr>
+<tr>
+<td>UV/OV warning</td>
+<td>TMC flags 19/20</td>
+<td>0x3200-class warning</td>
+<td>2</td>
+<td>Warn (status bit 7)</td>
+</tr>
+<tr>
+<td>Chip temperature exceeded / warning</td>
+<td>TMC flags 14/24</td>
+<td>0x4210 excess temperature device</td>
+<td>0,3</td>
+<td>Fault / Warn</td>
+</tr>
+<tr>
+<td>NTC (power stage) exceeded</td>
+<td>TemperatureManager</td>
+<td>0x4310 excess temperature drive</td>
+<td>0,3</td>
+<td>Fault</td>
+</tr>
+<tr>
+<td>Hall invalid state</td>
+<td>TMC flag 5</td>
+<td>0x7305 incremental sensor fault (verify code)</td>
+<td>0,5</td>
+<td>Fault</td>
+</tr>
+<tr>
+<td>Host encoder diag / plausibility</td>
+<td>AS5047U</td>
+<td>0x7300-class sensor (manufacturer sub-code)</td>
+<td>0,5</td>
+<td>Fault if it is the position source, else Warn</td>
+</tr>
+<tr>
+<td>IMU lost</td>
+<td>BNO08x</td>
+<td>0xFF10 (manufacturer)</td>
+<td>7</td>
+<td>Warn</td>
+</tr>
+<tr>
+<td>TMC comms (TMCL timeout/CRC)</td>
+<td><code>drive_rt</code></td>
+<td>0x7510 internal serial interface</td>
+<td>0,7</td>
+<td>Disable now</td>
+</tr>
+<tr>
+<td>TMC watchdog / heartbeat stopped</td>
+<td>TMC flags 9/26</td>
+<td>0x6010 software reset (watchdog)</td>
+<td>0,7</td>
+<td>Fault</td>
+</tr>
+<tr>
+<td>Following error</td>
+<td>host</td>
+<td>0x8611</td>
+<td>0,5</td>
+<td>Fault (0x605E)</td>
+</tr>
+<tr>
+<td>Software limit reached</td>
+<td>host</td>
+<td>0x8612 reference limit</td>
+<td>5</td>
+<td>Quick stop</td>
+</tr>
+<tr>
+<td>CAN RX overflow</td>
+<td>port</td>
+<td>0x8110</td>
+<td>4</td>
+<td>Warn</td>
+</tr>
+<tr>
+<td>Error passive</td>
+<td>port</td>
+<td>0x8120</td>
+<td>4</td>
+<td>Warn</td>
+</tr>
+<tr>
+<td>Heartbeat consumer loss</td>
+<td>CO_HBconsumer</td>
+<td>0x8130</td>
+<td>4</td>
+<td>0x6007 reaction</td>
+</tr>
+<tr>
+<td>Recovered from bus-off</td>
+<td>port</td>
+<td>0x8140</td>
+<td>4</td>
+<td>Warn (0x6007 reaction if it happened in OE)</td>
+</tr>
+<tr>
+<td>PDO length error</td>
+<td>CO_PDO</td>
+<td>0x8210 / 0x8220</td>
+<td>4</td>
+<td>Warn</td>
+</tr>
+<tr>
+<td>SYNC length / timeout</td>
+<td>CO_SYNC</td>
+<td>0x8240 / 0x8100</td>
+<td>4</td>
+<td>0x6007 reaction in cyclic modes</td>
+</tr>
+<tr>
+<td>RPDO timeout</td>
+<td>CO_PDO</td>
+<td>0x8250</td>
+<td>4</td>
+<td>0x6007 reaction</td>
+</tr>
+<tr>
+<td>Parameter invalid / store CRC mismatch</td>
+<td>storage</td>
+<td>0x6320</td>
+<td>0,7</td>
+<td>Refuse transition 3</td>
+</tr>
+<tr>
+<td>RT thread stall / overrun storm</td>
+<td>LivenessMonitor</td>
+<td>0x6100 internal software</td>
+<td>0,7</td>
+<td>Reset (journal first, bridge off)</td>
+</tr>
+</tbody>
+</table>
+<p>Escalation follows <code>pw_shared/system/fault_state.hpp</code>: the same cause repeating <code>kEscalateCount</code> times inside a window becomes sticky and needs a fault reset <em>and</em> the cause's <code>Cleared</code> predicate. CiA 402 fault reset (transition 15) succeeds only when every sticky cause's predicate holds. Otherwise the state stays Fault and 0x603F keeps the code.</p>
+<p>Quick stop: ramp using 0x6085 (TMC ramp deceleration) per 0x605A. Coasting (code 0) is the only option when the bridge itself is faulted, and the arbiter downgrades the reaction automatically when the class is "Disable now".</p>
+<h3 id="65-safety-arbiter-and-liveness-gated-watchdog">6.5 Safety arbiter and liveness-gated watchdog<a class="headerlink" href="#65-safety-arbiter-and-liveness-gated-watchdog" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>LivenessMonitor</code> (the same design as <code>pw_shared/system/liveness_monitor.hpp</code>) has checkpoints for <code>drive_rt</code> (5 ms, critical), <code>co_svc</code> (50 ms, critical), <code>i2c_io</code> (100 ms, critical) and <code>housekeep</code> (1 s, non-critical).</li>
+<li><code>safety</code> (every 5 ms) evaluates the verdict and raises <code>RtStall</code>/<code>SvcStall</code> causes. It feeds the ESP task watchdog <strong>only</strong> while the critical verdict is clean. Only <code>safety</code> subscribes to the TWDT, with the timeout reduced from 5 s to 500 ms. On a critical stall it commands, in order: TMC <code>SYSTEM_OFF</code> (if <code>drive_rt</code> is not the stalled thread), then <code>DRV_EN</code> low via <code>i2c_io</code>, then a journal entry, then it stops feeding the watchdog.</li>
+<li>Independent path: the TMC9660 SPI heartbeat (§5.5) and the hardware <code>DRV_EN</code> pull-down (verify on the schematic, Q6).</li>
+</ul>
+<h3 id="66-service-only-objects">6.6 Service-only objects<a class="headerlink" href="#66-service-only-objects" title="Permanent link">&para;</a></h3>
+<p>0x4100 (raw TMCL bridge), the commissioning commands and 0x2601 secrets are gated twice. The writer must hold authority, and the node must be in Pre-operational or Switched On (never Operation Enabled).</p>
+<h3 id="67-persistence">6.7 Persistence<a class="headerlink" href="#67-persistence" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Groups and keys: <code>od_comm</code> (0x1010:02), <code>od_app</code> (0x1010:03), <code>od_cal</code> (0x1010:04) in namespace <code>vortex_cfg</code>; <code>lss</code> (node-ID, bit-rate index) in <code>vortex_cfg</code>; secrets in <code>vortex</code> under a separate key; the fault journal ring in a new namespace <code>vortex_log</code>. The NVS partition should be encrypted (<code>nvs_flash_secure_init</code> + flash encryption) if secrets are stored (Q8).</li>
+<li>Record format, versioned by OD address rather than memory layout. Header {magic <code>VXOD</code>, u16 format, u32 OD hash, u32 count, u32 crc32}, followed by TLV records {u16 index, u8 sub, u8 type, u8 len, value}. On restore, every record whose (index, sub, type) exists in the current OD with <code>persist</code> = its group is range-checked and applied. Unknown or invalid records are dropped and counted (0x2800). Missing ones keep defaults. Changing the OD therefore never bricks a stored configuration. A YAML <code>migrations:</code> list can map renamed addresses.</li>
+<li>CANopenNode integration: <code>CO_storage_init</code> with custom <code>store</code>/<code>restore</code> callbacks that serialise the TLV list for each entry group. This replaces <code>CO_storageBlank.c</code>. 0x1011 writes a "restore pending" flag, and defaults apply after the next reset (CiA 301 semantics).</li>
+<li>Store is refused in Operation Enabled (flash cache stall, §4.4) with abort <code>0x08000022</code>, and it runs in <code>co_svc</code>.</li>
+<li>LSS: CANopenNode's LSS slave store callback (<code>CO_LSSslave_initCfgStoreCallback</code>) writes <code>lss</code>. At boot the order is LSS-stored node-ID → Kconfig default → 0xFF (unconfigured, LSS only). The bit-rate index follows the CiA 305 table (0 = 1 M, 1 = 800 k, 2 = 500 k, 3 = 250 k, 4 = 125 k, 6 = 50 k, 7 = 20 k, 8 = 10 k). The <code>CommChannelsManager</code> hard-coded 500 kbit/s becomes the value read from <code>lss</code>, applied before <code>EspCan</code> init. "Activate bit timing" re-initialises the TWAI node after the switch delay.</li>
+</ul>
+<hr />
+<h2 id="7-wireless-paths">7. Wireless paths<a class="headerlink" href="#7-wireless-paths" title="Permanent link">&para;</a></h2>
+<h3 id="71-recommendation">7.1 Recommendation<a class="headerlink" href="#71-recommendation" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Path</th>
+<th>Recommendation</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Wi-Fi STA + TLS tunnel (binary frame records)</td>
+<td><strong>Primary wireless path</strong> (Phase 2)</td>
+<td>python-canopen works unchanged through a python-can bus plugin (<code>interface="vortex"</code>, <code>channel="tls://host:port"</code>), so the whole CLI and test suite runs over Wi-Fi. Throughput is high, and it is reachable from any PC on the LAN</td>
+</tr>
+<tr>
+<td>CiA 309-3 ASCII over TLS-TCP</td>
+<td>Optional (Phase 3)</td>
+<td>Human- and script-friendly ("<code>[1] 5 r 0x6041 0 u16</code>"). CANopenNode ships <code>CO_gateway_ascii.c</code> and can address the whole CAN bus as a gateway. It is valuable for integrators and needs no special client</td>
+</tr>
+<tr>
+<td>ESP-NOW</td>
+<td><strong>Secondary</strong> (Phase 3): a PC dongle (any ESP32-C6/S3 board running <code>vortex-espnow-bridge</code> firmware exposing <strong>slcan</strong> over USB-CDC), plus board-to-board links</td>
+<td>No AP is needed and latency is low. slcan is supported by python-can on all OSes, so the dongle looks like a USB-CAN adapter. The same frame-record codec is used</td>
+</tr>
+<tr>
+<td>BLE</td>
+<td>Commissioning only, if wanted (Q4): IDF network provisioning (security 2, SRP6a) to set Wi-Fi credentials</td>
+<td>Avoids typing secrets into SDO from a PC</td>
+</tr>
+</tbody>
+</table>
+<h3 id="72-frame-record-tunnel-shared-by-wi-fi-and-esp-now">7.2 Frame-record tunnel (shared by Wi-Fi and ESP-NOW)<a class="headerlink" href="#72-frame-record-tunnel-shared-by-wi-fi-and-esp-now" title="Permanent link">&para;</a></h3>
+<p>Datagram format: <code>{u8 ver=1, u8 flags, u16 seq, u32 ack/epoch, then records: {u32 id|EXT|RTR, u8 flags FDF/BRS/ESI, u8 len, data[len]}...}</code>. A record is the transport form of <code>CanFrame</code>, so FD lengths are already representable. Wi-Fi carries the stream over TLS 1.3 PSK (mbedTLS via esp-tls). ESP-NOW carries one datagram per action frame: ≤ 250 B for v1 compatibility, ≤ 1470 B with v2. That is up to 23 classic frames per v1 datagram. Records arrive at the router as from any other port (§4.3), with that port's policy.</p>
+<h3 id="73-security">7.3 Security<a class="headerlink" href="#73-security" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>ESP-NOW:</strong> unicast only, CCMP-encrypted with a per-peer LMK under a device PMK. Broadcast or multicast cannot be encrypted, so the node ignores broadcast data except a signed pairing beacon. At most 17 encrypted peers; the IDF default is 7 (<code>CONFIG_ESP_WIFI_ESPNOW_MAX_ENCRYPT_NUM</code>). Keys are set over CAN or USB (0x2601, write-only) or by a pairing button sequence. An application sequence number with a replay window is added on top of CCMP.</li>
+<li><strong>Wi-Fi:</strong> credentials are provisioned via 0x2601 or BLE provisioning. The TLS-PSK identity and key are per device. There is no plaintext listener. Auth failures are rate-limited and counted in 0x2602. mDNS advertises <code>_vortex-co._tcp</code> for discovery.</li>
+<li>NVS encryption is required whenever secrets are present (Q8).</li>
+</ul>
+<h3 id="74-safety-rules-never-bypass">7.4 Safety rules (never bypass)<a class="headerlink" href="#74-safety-rules-never-bypass" title="Permanent link">&para;</a></h3>
+<ol>
+<li>By default 0x2701 allows enable (transition 4) from CAN only. A wireless writer of 0x6040 is accepted only for transitions <em>towards</em> safety (disable operation, disable voltage, quick stop). Shutdown/switch-on/enable (transitions &#8532;/4) and fault reset are rejected with abort <code>0x08000022</code>.</li>
+<li>If a user sets 0x2701 to allow wireless enable, the wireless port must hold authority (0x2700 request/grant). It must send a deadman (tunnel keep-alive or HB mirror) at least every 0x2701:02 ms (default 200). On loss, the 0x6007 reaction applies.</li>
+<li>Authority changes only in Switched On or below. A request from another transport while one holds authority is refused. The CAN master can always revoke authority, because CAN wins.</li>
+<li>NMT from wireless is limited by default to Reset Node / Pre-operational (Stop and Start need policy).</li>
+<li>Wireless never writes 0x1010, 0x4100 or 0x2601 unless policy bit "wireless service" is set.</li>
+</ol>
+<h3 id="75-expectations-to-be-measured-on-the-bench">7.5 Expectations (to be measured on the bench)<a class="headerlink" href="#75-expectations-to-be-measured-on-the-bench" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Path</th>
+<th>One-way latency (typ.)</th>
+<th>Jitter</th>
+<th>Practical throughput</th>
+<th>Use</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CAN 1 Mbit/s</td>
+<td>&lt; 0.2 ms</td>
+<td>µs</td>
+<td>~7000 frames/s</td>
+<td>control</td>
+</tr>
+<tr>
+<td>Wi-Fi TLS tunnel</td>
+<td>2–10 ms LAN</td>
+<td>tens of ms (retries, power save off)</td>
+<td>&gt; 1 Mbit/s</td>
+<td>tooling, telemetry, gated control</td>
+</tr>
+<tr>
+<td>ESP-NOW (1 Mbit/s default PHY rate)</td>
+<td>~1–5 ms</td>
+<td>up to tens of ms with retries</td>
+<td>~100–500 datagrams/s</td>
+<td>dongle, pendant, board links</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="8-can-fd-readiness">8. CAN FD readiness<a class="headerlink" href="#8-can-fd-readiness" title="Permanent link">&para;</a></h2>
+<p>What is abstracted now:</p>
+<ul>
+<li><code>CanFrame</code> with <code>len ≤ 64</code> plus FDF/BRS/ESI. <code>PortCaps</code> reports <code>fd</code> and <code>max_len</code>. The router enforces the per-port length.</li>
+<li><code>BaseCan</code> v2 in hf-internal-interface-wrap gets an FD-sized message (<code>data[64]</code>, byte length, flags). The FD flags stay on the current <code>hf_can_message_t</code> only after <code>data</code> is enlarged. Until then <code>SetDLC</code> &gt; 8 must be rejected, which fixes the latent overrun (§3).</li>
+<li><code>CO_driver_target.h</code> uses <code>CO_CAN_MAX_LEN</code>. Stack config <code>CO_PDO_MAX_SIZE</code> comes from one place. YAML mapping limits are per build (<code>fd_only</code> objects are compiled out on classic).</li>
+<li>The PDO profile tables in contracts declare classic and FD variants. CiA 402-6 defines CANopen FD PDO mapping, and the FD variants follow it. On FD, one RPDO (controlword + target + offsets) and one TPDO (status + all actuals + error + temperatures, about 24 B) replace RPDO2–4 and TPDO2–4. At 1 / 5 Mbit/s this is about 70 µs per frame instead of 2–3 × 135 µs.</li>
+</ul>
+<p>What an STM32 FDCAN binding needs:</p>
+<ol>
+<li><code>StmFdcanPort : ICanPort</code> with nominal and data bit timing, TDC (<code>SetTransmitterDelayCompensation</code>, already in <code>BaseCan</code>), RX FIFO interrupt → sink, TX FIFO non-blocking, bus-off auto-recovery policy, and hardware filter banks (FDCAN has many, so <code>useCANrxFilters = true</code>).</li>
+<li>Stack: CANopenNode v4 has no CiA 1301. Its PDO path assumes ≤ 8 bytes in at least one place: bitwise-mapping copies <code>CO_PDO_MAX_SIZE</code> bytes into a <code>uint64_t</code> (<code>301/CO_PDO.c:787-789</code>). Mapping entries are limited to 8. Two options, decided when hardware exists (Q9):</li>
+<li>(a) Extend CANopenNode: 64-byte PDOs with bitwise mapping disabled, more mapping entries, an FD EMCY format and a new USDO server module. Upstream the work.</li>
+<li>(b) Replace the stack behind <code>CoStack</code> with a commercial CiA 1301 stack (for example emotas or MicroControl, which advertise CiA 1301).
+   Either way the OD YAML, contracts, drive app, router and tools are unchanged. The generator gains an XDD (CiA 1311) emitter, and python tooling needs a USDO client. python-canopen has none today, so it would be a small added module.</li>
+<li>USDO uses the 0x600/0x580+id ranges with destination addressing in the payload, and it is not backward compatible with CiA 301 SDO. CiA 1301 is a separate network mode, not a per-frame option. A node runs either CANopen CC or CANopen FD on a given bus. The Kconfig/CMake option <code>VORTEX_CANOPEN_FD</code> selects the stack mode, and the YAML marks SDO vs USDO channel objects.</li>
+</ol>
+<hr />
+<h2 id="9-tooling-and-verification">9. Tooling and verification<a class="headerlink" href="#9-tooling-and-verification" title="Permanent link">&para;</a></h2>
+<h3 id="91-eds-and-drift">9.1 EDS and drift<a class="headerlink" href="#91-eds-and-drift" title="Permanent link">&para;</a></h3>
+<p><code>vortex_v1.eds</code> is generated (§4.2) and checked in under <code>od/</code> and inside the Python package. CI job <code>od-drift</code> runs <code>odgen --check</code>, the CANopenEditor structural cross-check, and an EDS lint (<code>canopen.import_od</code> must load the file and round-trip every object). A firmware build embeds the OD hash (0x5FFE). <code>vortex-canopen info</code> warns if the device hash differs from the packaged EDS.</p>
+<h3 id="92-python-package-vortex-canopen">9.2 Python package <code>vortex-canopen</code><a class="headerlink" href="#92-python-package-vortex-canopen" title="Permanent link">&para;</a></h3>
+<p>Built on <a href="https://canopen.readthedocs.io/">python-canopen</a> (SDO expedited/segmented/block, PDO map read/save, NMT, LSS master, EMCY, <code>BaseNode402</code>, network scanner) and python-can (socketcan, gs_usb/candleLight, slcan, PCAN, Kvaser, <code>udp_multicast</code>). It lives in <code>hardfoc-vortex-v1/tools/vortex_canopen/</code> so that firmware, EDS and tool version together. It is published to PyPI per release.</p>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Function</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>vortex-canopen scan [--lss]</code></td>
+<td>network scanner (SDO 0x1000 probe) and LSS fastscan for unconfigured nodes</td>
+</tr>
+<tr>
+<td><code>lss set-id N</code>, <code>lss set-bitrate 1M</code>, <code>lss store</code>, <code>lss identify</code></td>
+<td>CiA 305 configuration</td>
+</tr>
+<tr>
+<td><code>nmt start|stop|preop|reset|reset-comm [--node N]</code></td>
+<td>NMT</td>
+</tr>
+<tr>
+<td><code>sdo get &lt;name|idx:sub&gt;</code>, <code>sdo set &lt;…&gt; &lt;val&gt;</code>, <code>sdo dump [--range]</code></td>
+<td>names from the packaged EDS. <code>--block</code> forces block transfer</td>
+</tr>
+<tr>
+<td><code>pdo show</code>, <code>pdo apply &lt;profile&gt;</code>, <code>pdo map TPDOn obj…</code></td>
+<td>profiles: <code>pp</code>, <code>pv</code>, <code>tq</code>, <code>csp</code>, <code>csv</code>, <code>cst</code>, <code>imu-stream</code>, <code>telemetry</code></td>
+</tr>
+<tr>
+<td><code>plot &lt;obj…&gt; [--rate]</code></td>
+<td>live plot from TPDOs (pyqtgraph). CSV logging</td>
+</tr>
+<tr>
+<td><code>drive state</code>, <code>drive walk</code>, <code>drive enable|disable|quick-stop|fault-reset</code></td>
+<td>402 state walk with decoded statusword</td>
+</tr>
+<tr>
+<td><code>demo pp|pv|tq|csp [--amplitude --freq --duration]</code></td>
+<td>bounded demos. csp uses python-can <code>send_periodic</code> for SYNC (kernel BCM on socketcan; thread-based elsewhere), and the host jitter is reported</td>
+</tr>
+<tr>
+<td><code>imu stream [--report rv,accel,gyro]</code>, <code>imu calibrate save|tare</code></td>
+<td></td>
+</tr>
+<tr>
+<td><code>encoder show</code>, <code>encoder zero</code></td>
+<td></td>
+</tr>
+<tr>
+<td><code>info</code></td>
+<td>0x1018, 0x1008–0x100A, 0x2000–0x2002, OD hash check</td>
+</tr>
+<tr>
+<td><code>faults dump|clear</code>, <code>emcy watch</code></td>
+<td>journal via block SDO, decoded with the policy table exported by <code>odgen</code></td>
+</tr>
+<tr>
+<td><code>commission run [--steps …]</code>, <code>motor select &lt;row&gt;</code>, <code>params save|restore|export dcf|import dcf</code></td>
+<td>commissioning and parameter sets (DCF per CiA 306)</td>
+</tr>
+<tr>
+<td>global <code>--interface/--channel/--bitrate</code>, or <code>--url tls://host:port</code>, <code>--url slcan://COM5</code></td>
+<td>any transport</td>
+</tr>
+</tbody>
+</table>
+<h3 id="93-bench-test-plan-usb-can">9.3 Bench test plan (USB-CAN)<a class="headerlink" href="#93-bench-test-plan-usb-can" title="Permanent link">&para;</a></h3>
+<p>Adapters:
+- <strong>Reference:</strong> PEAK PCAN-USB FD. It is isolated, has mature Windows/Linux drivers, is FD-ready for the STM32 future, and python-can <code>pcan</code> supports it.
+- <strong>Low-cost:</strong> candleLight-firmware adapters (CANable 2.x and similar) via <code>gs_usb</code> (Windows/macOS through libusb, Linux native SocketCAN). FD support depends on the adapter firmware.
+- <strong>Alternative:</strong> Kvaser Leaf v3.</p>
+<p>Wiring: twisted pair CAN_H/CAN_L plus signal ground. 120 Ω at each physical end, so the measured resistance between H and L with power off is 60 Ω. Stubs ≤ 0.3 m at 1 Mbit/s. Confirm whether Vortex has on-board termination or a jumper (Q7). Confirm the transceiver STB pin polarity and drive <code>PCAL_CAN_HS_STB_OP</code> to normal mode at boot (§3).</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Test</th>
+<th>Pass criterion</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>B1</td>
+<td>Boot heartbeat at 125k/250k/500k/1M (set by LSS)</td>
+<td>HB every 100 ms ± 1 ms. No error frames over 10 min</td>
+</tr>
+<tr>
+<td>B2</td>
+<td><code>scan</code>, <code>info</code>, OD hash matches</td>
+<td>all objects readable</td>
+</tr>
+<tr>
+<td>B3</td>
+<td>SDO block upload of 0x4001 (2 KB) and download of a DCF</td>
+<td>CRC ok, ≥ 20 kB/s at 1M</td>
+</tr>
+<tr>
+<td>B4</td>
+<td>PDO remap to each profile</td>
+<td>mapping read-back equals profile</td>
+</tr>
+<tr>
+<td>B5</td>
+<td>Bus-off: short H/L during traffic, release</td>
+<td>0x8140 EMCY after recovery. Drive reacts per 0x6007 if it was in OE</td>
+</tr>
+<tr>
+<td>B6</td>
+<td>Pull the adapter (heartbeat loss) in pv</td>
+<td>0x8130, Fault within HB time + 1 cycle, shaft stops</td>
+</tr>
+<tr>
+<td>B7</td>
+<td><code>demo pv</code> / <code>pp</code> / <code>tq</code> (unloaded tq only with 0x6080 set) per catalog row</td>
+<td>profile tracks. Limits respected</td>
+</tr>
+<tr>
+<td>B8</td>
+<td><code>demo csp</code> at 250/500/1000 Hz with a Linux SocketCAN host</td>
+<td>RT step WCET ≤ 300 µs (0x4201). Following error within window</td>
+</tr>
+<tr>
+<td>B9</td>
+<td>ESP32 hang (debug command to stop <code>drive_rt</code>)</td>
+<td>TMC heartbeat stop within 20 ms (scope on phase current)</td>
+</tr>
+<tr>
+<td>B10</td>
+<td>IMU stream TPDO5–7 at 100 Hz plus csp 500 Hz</td>
+<td>no TPDO late (0x8220/inhibit), bus load ≤ 60 %</td>
+</tr>
+<tr>
+<td>B11</td>
+<td>Store/restore and power cycle</td>
+<td>parameters persist. 0x1011 restores defaults after reset</td>
+</tr>
+</tbody>
+</table>
+<h3 id="94-host-ci-same-node-simulated-hardware">9.4 Host CI: same node, simulated hardware<a class="headerlink" href="#94-host-ci-same-node-simulated-hardware" title="Permanent link">&para;</a></h3>
+<pre class="mermaid"><code>flowchart LR
+  subgraph build["CMake host build (Linux)"]
+    CORE["CANopenNode + OD.c (same files)"]
+    APP["node app: CoNode, DriveAxis, Router, Safety"]
+    SIM["HAL sims: SimAxisPort (motor model),\nSimEncoder, SimImu, SimNvs, SimGpio"]
+    PORT["LinuxSocketCanPort (vcan0)\nor PipePort (fallback)"]
+  end
+  BIN["vortex_node_host --node-id 5 --port vcan0"]
+  PY["pytest + python-canopen\n(conformance-style suites)"]
+  build --&gt; BIN
+  PY --&gt;|"python-can socketcan / vortex pipe plugin"| BIN
+  PY --&gt;|"fault injection over a control socket"| SIM</code></pre>
+<ul>
+<li>The host binary compiles the <strong>same</strong> CANopenNode sources, the generated <code>OD.c</code>, contracts and node application. Only the <code>ICanPort</code> binding, the HAL facade implementations and the RTOS shim differ (pthreads; <code>BaseThread</code> host stub as in <code>pw-controller-sw/tests/host/SystemStateMachineThreadHostStub.cpp</code>).</li>
+<li><code>SimAxisPort</code> models the TMC9660 behaviour the app relies on: an electrical/mechanical model (R, L, Kt, J, b, load torque), internal current/velocity/position PI with the TMC ramp, flags (OC, OV, UV, OT, I²t, Hall error, heartbeat stop), the ~1 kHz target sampling quirk and the SPI heartbeat. Faults are injected over a JSON control socket from pytest.</li>
+<li>Bus: GitHub-hosted runners do not reliably provide the <code>vcan</code> module. GitHub has said it has no plans to add kernel modules, and <code>linux-modules-extra-$(uname -r)</code> has been missing on some images (<a href="https://github.com/orgs/community/discussions/26614">community #26614</a>, <a href="https://github.com/orgs/community/discussions/63910">#63910</a>). The job tries <code>modprobe vcan</code>. If that fails, it uses <code>PipePort</code>: a UNIX-socket hub that carries the §7.2 frame records, with a matching python-can <code>BusABC</code> plugin. That plugin is the same one used for the Wi-Fi tunnel, so the codec is tested on every run. The suite is identical on both buses, and a self-hosted runner can force <code>vcan</code>.</li>
+<li>Suites (pytest, parametrised over bitrate-agnostic timing):</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Suite</th>
+<th>Checks</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_nmt_hb.py</code></td>
+<td>boot-up message, NMT state transitions, HB period, 0x1F80 behaviour, reset comm/node</td>
+</tr>
+<tr>
+<td><code>test_sdo.py</code></td>
+<td>expedited (&frac12;/&frac34; B), segmented, block upload/download with CRC, abort codes (0x06020000 no object, 0x06010002 ro, 0x06070010 type length, 0x06090031 high, 0x08000022 state)</td>
+</tr>
+<tr>
+<td><code>test_pdo.py</code></td>
+<td>mapping procedure, invalid mapping aborts, sync/async/event timer/inhibit, RPDO timeout EMCY, length error EMCY</td>
+</tr>
+<tr>
+<td><code>test_sync_time_emcy.py</code></td>
+<td>SYNC consumer, window, SYNC timeout; TIME sets journal clock; EMCY inhibit; 0x1003 history and clear</td>
+</tr>
+<tr>
+<td><code>test_lss.py</code></td>
+<td>fastscan, set ID, set bit-rate, store, identity match</td>
+</tr>
+<tr>
+<td><code>test_storage.py</code></td>
+<td>0x1010/0x1011 groups, refusal in OE, TLV migration fixtures (OD v<em>n</em> → v<em>n</em>+1)</td>
+</tr>
+<tr>
+<td><code>test_402_fsm.py</code></td>
+<td>every transition 0–16 from every state (table-driven from contracts), statusword bits, option codes 0x605A–0x605E, 0x6007</td>
+</tr>
+<tr>
+<td><code>test_modes.py</code></td>
+<td>pp (set-point handshake bits &#8536;/9, target reached), pv, tq (with speed limit), hm (methods 35/37, switch methods with sim REF), csp/csv/cst with host SYNC</td>
+</tr>
+<tr>
+<td><code>test_faults.py</code></td>
+<td>each policy-table row: inject → EMCY code/ER/402 reaction/journal entry/fault-reset rules/escalation</td>
+</tr>
+<tr>
+<td><code>test_authority.py</code></td>
+<td>wireless enable refused, policy grant, deadman loss, CAN revoke</td>
+</tr>
+<tr>
+<td><code>test_manufacturer_area.py</code></td>
+<td>IMU/encoder/temperature objects and packed PDO scaling</td>
+</tr>
+<tr>
+<td><code>test_cli.py</code></td>
+<td><code>vortex-canopen</code> commands against the host node</td>
+</tr>
+</tbody>
+</table>
+<p>Contracts get C++ unit tests (GoogleTest, as in <code>pw-controller-sw/tests/host</code>): the CiA 402 rule table, fault policy, TLV store codec, router policy and PDO profile tables.</p>
+<hr />
+<h2 id="10-migration-and-implementation-plan">10. Migration and implementation plan<a class="headerlink" href="#10-migration-and-implementation-plan" title="Permanent link">&para;</a></h2>
+<h3 id="101-keep--change--delete">10.1 Keep / change / delete<a class="headerlink" href="#101-keep--change--delete" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Decision</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CANopenNode submodule (<code>hf-hal-vortex-v1/third_party/CANopenNode</code>)</td>
+<td><strong>Keep</strong>, pinned. Compile the full set incl. <code>CO_fifo.c</code>, <code>crc16-ccitt.c</code>, <code>CO_SDOclient.c</code> (local), <code>309/CO_gateway_ascii.c</code> (optional)</td>
+</tr>
+<tr>
+<td>hf-core CMake gate <code>HF_CORE_ENABLE_CANOPENNODE</code></td>
+<td><strong>Keep</strong>, but stop compiling <code>example/OD.c</code> and <code>CO_storageBlank.c</code>. The OD comes from the app (<code>HF_CORE_CANOPENNODE_OD_DIR</code>)</td>
+</tr>
+<tr>
+<td><code>CO_driver_vortex.c</code> / <code>CO_driver_target.h</code> / <code>hf_co_driver_iface.h</code></td>
+<td><strong>Replace</strong> with <code>CO_driver_hardfoc.c</code> over <code>ICanPort</code>: no blocking in locks, ring-buffered RX, TX retry from TX-done, error-status mapping, <code>CO_CAN_MAX_LEN</code></td>
+</tr>
+<tr>
+<td><code>CanOpenBaseCanLink.hpp</code>, <code>HfUtilsCanOpenTransport.hpp</code>, <code>HfUtilsCanOpenBridge.hpp</code></td>
+<td><strong>Delete</strong> after the master thread is gone (polling <code>ReceiveMessage</code> cannot work on EspCan)</td>
+</tr>
+<tr>
+<td><code>EspCan</code> (hf-internal-interface-wrap)</td>
+<td><strong>Fix</strong>: remove the post-TX <code>vTaskDelay</code>, add an ISR-safe RX ring so <code>ReceiveMessage</code> works, remove logging from ISR paths, add a non-blocking send. <code>BaseCan</code> v2 FD-sized message</td>
+</tr>
+<tr>
+<td><code>CanopenSlaveRuntime.cpp</code></td>
+<td><strong>Rewrite</strong> as <code>CoNode</code> + threads. Keep its init order (CO_new → CO_CANinit → CO_CANopenInit → CO_CANopenInitPDO, tolerate <code>CO_ERROR_NODE_ID_UNCONFIGURED_LSS</code>) and <code>NMT_CONTROL</code> flags</td>
+</tr>
+<tr>
+<td><code>CANOpenBLDCThread</code>, <code>EnhancedCANOpenUtils.*</code>, <code>CanOpenHostServiceThread.*</code>, <code>VortexCanOpenApp.hpp</code>, <code>VortexCanHost</code> references, Kconfig choice <code>VORTEX_APP_CAN_BOOT_*</code></td>
+<td><strong>Delete</strong>. Replace with <code>VORTEX_CANOPEN_ROLE</code> (device / none) plus <code>VORTEX_CANOPEN_DEFAULT_NODE_ID</code> / <code>_BITRATE</code></td>
+</tr>
+<tr>
+<td><code>hf-utils-canopen</code> (<code>CanOpenUtils</code>, <code>CanOpenMotorUtils</code>, <code>CanOpenExtras</code>)</td>
+<td><strong>Keep</strong> in hf-core-utils as a small generic frame library (useful for a future master role and C++ host tests). Not used by the device</td>
+</tr>
+<tr>
+<td><code>hf-vortex-driver</code></td>
+<td>Replace <code>VortexProtocol.hpp</code> with the generated <code>vortex_od_ids.hpp</code> (fixing the 0x1021 error). Either keep it as an optional C++ host SDK or archive it (Q10). <code>vortex-canopen</code> supersedes <code>VortexHostSession</code> for PCs</td>
+</tr>
+<tr>
+<td><code>docs/helpers/usb_can/*</code></td>
+<td><strong>Delete</strong> (superseded), including the committed <code>__pycache__</code></td>
+</tr>
+<tr>
+<td><code>CommChannelsManager</code> CAN init</td>
+<td><strong>Change</strong>: bit-rate from <code>lss</code> record, drive <code>PCAL_CAN_HS_STB_OP</code> to normal mode, expose an <code>ICanPort</code> binding</td>
+</tr>
+<tr>
+<td>sdkconfig</td>
+<td><code>CONFIG_FREERTOS_HZ=1000</code>, TWDT 500 ms subscribed by <code>safety</code>, two-OTA partition table (prepares CiA 302-3)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="102-ordered-prs">10.2 Ordered PRs<a class="headerlink" href="#102-ordered-prs" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>PR (repo)</th>
+<th>Content</th>
+<th>Acceptance criteria</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Fix build + tick (hardfoc-vortex-v1)</td>
+<td>Remove the <code>VortexCanHostThread</code> include/members, <code>FREERTOS_HZ=1000</code>, CI builds every Kconfig CAN choice</td>
+<td>CI green for all configs. No TWDT trip with the slave option in a 10 min soak (bench)</td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>BaseCan</code> v2 + EspCan fixes (hf-internal-interface-wrap)</td>
+<td>FD-sized frame, <code>SetDLC</code> guard, RX ring + working <code>ReceiveMessage</code>, no ISR logging, non-blocking send, drop the 1 ms delay</td>
+<td>unit test for the frame type; ESP loopback example sends 5000 frames/s without loss</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Contracts package (hardfoc-vortex-v1 <code>contracts/</code>)</td>
+<td><code>CanFrame</code>, <code>PortCaps</code>, CiA 402 rule table, fault policy table, router policy, TLV codec + GoogleTest host build in CI</td>
+<td>100 % transition-table coverage. CI job <code>contracts-host</code></td>
+</tr>
+<tr>
+<td>4</td>
+<td>OD source + generator (hardfoc-vortex-v1 <code>od/</code>, <code>tools/odgen</code>)</td>
+<td>YAML for §5 (initially 301 + 402 core + 0x2000/0x4200), OD.c/h, EDS, ids, docs, <code>--check</code></td>
+<td><code>od-drift</code> job. python-canopen loads the EDS. CANopenEditor cross-check passes</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Generic CO driver + ports (hf-core)</td>
+<td><code>CO_driver_hardfoc.c</code>, <code>CO_driver_target.h</code> (<code>CO_CAN_MAX_LEN</code>), <code>EspTwaiPort</code>, <code>LinuxSocketCanPort</code>, <code>PipePort</code>; CMake stops using example OD/storage</td>
+<td>host loopback test: 10⁵ frames, no loss, no lock inversion (TSan)</td>
+</tr>
+<tr>
+<td>6</td>
+<td>CoNode + host binary + first CI suites (hardfoc-vortex-v1)</td>
+<td><code>CoNode</code>, <code>co_svc</code>, router (CAN only), sim HAL skeleton, <code>vortex_node_host</code>, pytest <code>test_nmt_hb</code>, <code>test_sdo</code>, <code>test_pdo</code>, <code>test_lss</code></td>
+<td>suites green on vcan or pipe. On-board B1/B2 pass at 500k and 1M</td>
+</tr>
+<tr>
+<td>7</td>
+<td>Storage + LSS persistence</td>
+<td>TLV storage callbacks, <code>lss</code> record, bit-rate from NVS, STB pin</td>
+<td><code>test_storage</code>, <code>test_lss</code> incl. power-cycle fixture. B11</td>
+</tr>
+<tr>
+<td>8</td>
+<td>DriveAxis + <code>drive_rt</code> (pv, pp, tq) + SimAxisPort</td>
+<td>402 FSM wired, TMC apply at transition 3, SPI2 ownership moved into <code>drive_rt</code>, TMC heartbeat</td>
+<td><code>test_402_fsm</code>, <code>test_modes</code> (pp/pv/tq). B6, B7, B9</td>
+</tr>
+<tr>
+<td>9</td>
+<td>Safety arbiter + journal + EMCY table</td>
+<td>FaultBook, liveness, TWDT gating, journal objects 0x4000–0x4003</td>
+<td><code>test_faults</code> (every row). B5</td>
+</tr>
+<tr>
+<td>10</td>
+<td>Cyclic modes + hm + timing objects</td>
+<td>csp/csv/cst, interpolation, SYNC jitter histogram, homing</td>
+<td><code>test_modes</code> all. B8 WCET ≤ 300 µs at 1 kHz</td>
+</tr>
+<tr>
+<td>11</td>
+<td>Catalog + commissioning + manufacturer area</td>
+<td>catalog rows, 0x3000–0x3022, IMU/encoder/temp/GPIO/LED objects, <code>i2c_io</code></td>
+<td><code>test_manufacturer_area</code>, sim commissioning. Bench matrix per motor</td>
+</tr>
+<tr>
+<td>12</td>
+<td><code>vortex-canopen</code> 1.0 (hardfoc-vortex-v1 <code>tools/</code>)</td>
+<td>CLI §9.2, profiles, plot, journal decode, PyPI workflow</td>
+<td><code>test_cli</code> in CI. B2–B4, B7 executed with the tool only</td>
+</tr>
+<tr>
+<td>13</td>
+<td>Wi-Fi tunnel + authority</td>
+<td>TunnelPort over TLS-PSK, python-can plugin, 0x2600–0x2701, mDNS</td>
+<td><code>test_authority</code> (via pipe). CLI runs the whole suite over Wi-Fi on the bench</td>
+</tr>
+<tr>
+<td>14</td>
+<td>ESP-NOW dongle + optional 309-3</td>
+<td><code>vortex-espnow-bridge</code> (slcan), ESP-NOW port, gateway ASCII</td>
+<td>bench: <code>scan</code>/<code>sdo</code>/<code>imu stream</code> through the dongle. Latency table §7.5 filled</td>
+</tr>
+<tr>
+<td>15</td>
+<td>Cleanup</td>
+<td>delete the items in §10.1, update docs/READMEs, archive or repurpose <code>hf-vortex-driver</code></td>
+<td>no references to removed symbols. Docs link-check green</td>
+</tr>
+<tr>
+<td>16</td>
+<td>FD prep (when STM32 exists)</td>
+<td><code>StmFdcanPort</code>, stack decision (Q9), XDD emitter, FD PDO profiles</td>
+<td>host FD build with <code>CO_CAN_MAX_LEN=64</code> passes the classic suites. FD bench on PCAN-USB FD</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="11-open-questions-for-the-owner">11. Open questions for the owner<a class="headerlink" href="#11-open-questions-for-the-owner" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Question</th>
+<th>Default if no answer</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Q1</td>
+<td>Register a CiA vendor ID for 0x1018:01 (needed for certification and for LSS uniqueness across vendors)?</td>
+<td>use 0x00000000 placeholder in development</td>
+</tr>
+<tr>
+<td>Q2</td>
+<td>Preferred USB-CAN adapter for the team bench?</td>
+<td>PCAN-USB FD reference + candleLight for cheap seats</td>
+</tr>
+<tr>
+<td>Q3</td>
+<td>Default bit-rate and node-ID out of the box?</td>
+<td>500 kbit/s, node-ID 1 (LSS available); 1 Mbit/s recommended for 1 kHz csp</td>
+</tr>
+<tr>
+<td>Q4</td>
+<td>Should BLE be a commissioning path (Wi-Fi provisioning, maybe SDO over BLE)?</td>
+<td>BLE provisioning only, later</td>
+</tr>
+<tr>
+<td>Q5</td>
+<td>Which motor(s) and feedback on the bench? Is the AS5047U (or its ABI/UVW outputs) routed to the TMC9660 SPI-encoder/ABN/Hall pins on any Vortex revision?</td>
+<td>bench 24 V/30 W BLDC, open loop + Hall; AS5047U host-only</td>
+</tr>
+<tr>
+<td>Q6</td>
+<td>Is <code>DRV_EN</code> pulled to the disabled state in hardware when the PCAL95555 is reset or unpowered?</td>
+<td>treat as unknown; rely on TMC heartbeat</td>
+</tr>
+<tr>
+<td>Q7</td>
+<td>Transceiver part, STB polarity, on-board termination (fixed / jumper / none)?</td>
+<td>drive STB to normal at boot after confirming polarity; external terminators</td>
+</tr>
+<tr>
+<td>Q8</td>
+<td>Accept flash + NVS encryption (needed before storing Wi-Fi/ESP-NOW secrets)?</td>
+<td>wireless secrets disabled until yes</td>
+</tr>
+<tr>
+<td>Q9</td>
+<td>For CAN FD: extend CANopenNode (open source, effort) or license a CiA 1301 stack?</td>
+<td>decide at STM32 board start; keep <code>CoStack</code> seam</td>
+</tr>
+<tr>
+<td>Q10</td>
+<td>Keep <code>hf-vortex-driver</code> as a C++ host SDK or archive it?</td>
+<td>archive after PR 15</td>
+</tr>
+<tr>
+<td>Q11</td>
+<td>Multi-axis via external TMC9660 on the expansion CS lines: in scope for V1?</td>
+<td>design supports it; implement after single-axis is done</td>
+</tr>
+<tr>
+<td>Q12</td>
+<td>Should wireless ever be allowed to enable motion (for example, a tethered pendant over ESP-NOW)?</td>
+<td>no (policy object exists, default CAN-only)</td>
+</tr>
+<tr>
+<td>Q13</td>
+<td>Use the C6's second TWAI controller (unrouted on V1) on a future revision for a second, isolated bus?</td>
+<td>no</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="12-references">12. References<a class="headerlink" href="#12-references" title="Permanent link">&para;</a></h2>
+<p>Specifications (CiA documents are available from CAN in Automation; section titles given where the text above relies on them):</p>
+<ul>
+<li>CiA 301 v4.2 <em>CANopen application layer and communication profile</em>: NMT, heartbeat, SYNC, TIME, EMCY (error codes table, error register), SDO incl. block transfer, PDO communication/mapping, 0x1010/0x1011 signatures, 0x1018, 0x1029, logical device offsets. Overview: https://www.can-cia.org/can-knowledge/</li>
+<li>CiA 305 <em>Layer setting services (LSS)</em>: switch state, configure node-ID / bit timing (table), store configuration, fastscan.</li>
+<li>CiA 402 series <em>Drives and motion control</em>: part 2 operation modes and application data (state machine, 0x6040/0x6041, 0x605A–0x605E, 0x6007, modes 0x6060/0x6061, 0x6502, multi-axis 0x800 offset), part 3 PDO mapping, part 6 CANopen FD PDO mapping: https://www.can-cia.org/can-knowledge/cia-402-series-canopen-device-profile-for-drives-and-motion-control ; IEC 61800-7-201/301.</li>
+<li>CiA 406 <em>Encoders</em>; CiA 410 <em>Inclinometers</em> (assessed, not used).</li>
+<li>CiA 306 <em>Electronic data sheet (EDS/DCF)</em>; CiA 1311 <em>XDD for CANopen FD</em>: https://www.can-cia.org/news/cia-in-action/view/electronic-description-for-canopen-fd-devices/2020/11/24/</li>
+<li>CiA 309-3 <em>Access from other networks — ASCII mapping</em>.</li>
+<li>CiA 1301 <em>CANopen FD application layer</em> (USDO, 64-byte PDO, extended EMCY): https://can-cia.org/news/press-releases/view/canopen-fd-faster-and-with-improved-functionality/2017/10/9/ ; https://can-cia.org/news/cia-in-action/view/universal-sdo-uni-broad-and-multi-cast/ ; CiA 1310-1 conformance: https://www.can-cia.org/can-knowledge/cia-1310-canopen-fd-conformance-test-plan</li>
+<li>CiA 402 background used for cross-checking state-machine behaviour: https://www.synapticon.com/en/motion-control-academy/cia-402-antriebsprofil-state-machine ; https://nanotec.com/eu/it/prodotti/manuale/m/np5-spi-en/p/general%2Fds402_power_state_machine.html</li>
+</ul>
+<p>Software and platform:</p>
+<ul>
+<li>CANopenNode v4: https://github.com/CANopenNode/CANopenNode (README "Device support", <code>301/CO_config.h</code>, <code>301/CO_PDO.c</code>, <code>309/CO_gateway_ascii.h</code>, <code>storage/CO_storage.h</code>)</li>
+<li>CANopenEditor (EDS/XDD/CANopenNode V4 export, EDSSharp CLI): https://github.com/CANopenNode/CANopenEditor</li>
+<li>CANopenLinux (SocketCAN reference driver, command interface): https://github.com/CANopenNode/CANopenLinux</li>
+<li>Espressif CANopenNode component (for comparison; SYNC/sync PDO/TIME/HB consumer unsupported): https://components.espressif.com/components/espressif/canopennode/versions/0.1.0/readme</li>
+<li>ESP-IDF TWAI (ESP32-C6): https://docs.espressif.com/projects/esp-idf/en/stable/esp32c6/api-reference/peripherals/twai.html</li>
+<li>ESP-IDF ESP-NOW (ESP32-C6): https://docs.espressif.com/projects/esp-idf/en/stable/esp32c6/api-reference/network/esp_now.html</li>
+<li>ESP-IDF task priorities and real-time guidance: https://docs.espressif.com/projects/esp-idf/en/stable/esp32c6/api-guides/performance/speed.html</li>
+<li>python-canopen: https://canopen.readthedocs.io/ (profiles: https://canopen.readthedocs.io/en/latest/profiles.html); python-can interfaces: https://python-can.readthedocs.io/en/stable/interfaces.html</li>
+<li>GitHub Actions and <code>vcan</code>: https://github.com/orgs/community/discussions/26614 ; https://github.com/orgs/community/discussions/63910 ; https://github.com/hardbyte/python-can/pull/827</li>
+<li>TMC9660 configuration and bootstrapping (AN-2601): https://www.analog.com/media/en/technical-documentation/app-notes/an-2601.pdf</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../" class="md-footer__link md-footer__link--prev" aria-label="Previous: Design notes">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Design notes
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../drive-observability/" class="md-footer__link md-footer__link--next" aria-label="Next: Drive observability">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Drive observability
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      
+<div class="md-copyright hf-footer">
+  <nav class="hf-footer__links" aria-label="HardFOC">
+    <a href="https://hardfoc.github.io/">HardFOC docs</a>
+    <a href="https://github.com/hardfoc">GitHub organisation</a>
+    
+      <a href="https://github.com/hardfoc/hardfoc-vortex-v1">Source</a>
+      <a href="https://github.com/hardfoc/hardfoc-vortex-v1/issues">Report an issue</a>
+      <a href="https://github.com/hardfoc/hardfoc-vortex-v1/blob/main/LICENSE">License</a>
+    
+  </nav>
+  
+    <div class="md-copyright__highlight">Copyright &copy; HardFOC contributors</div>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+    <a href="https://github.com/hardfoc" target="_blank" rel="noopener" title="HardFOC on GitHub" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.indexes", "navigation.top", "navigation.footer", "navigation.tracking", "navigation.instant", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate", "content.action.edit", "content.tabs.link", "toc.follow"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"alias": true, "default": "latest", "provider": "mike"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.c21346df.min.js"></script>
+      
+        <script src="../../search/main.js"></script>
+      
+    
+  </body>
+</html>
