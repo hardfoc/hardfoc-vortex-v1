@@ -47,7 +47,15 @@
 #include "VortexSupervisor.h"
 #include "VortexSystemThread.h"
 
+#include "managers/AdcManager.h"
+#include "managers/CommChannelsManager.h"
+#include "managers/EncoderManager.h"
 #include "managers/GpioManager.h"
+#include "managers/ImuManager.h"
+#include "managers/LedManager.h"
+#include "managers/MotorController.h"
+#include "managers/NvsManager.h"
+#include "managers/TemperatureManager.h"
 #include "Vortex.h"
 #include "handlers/logger/Logger.h"
 
