@@ -44,5 +44,5 @@ python3 test_frame_encoding.py
 python3 ds402_host_test.py --interface socketcan --channel can0 --node-id 1 --action read_status
 ```
 
-With the Vortex slave runtime as it is today, expect no SDO reply: the firmware cannot receive frames yet
-([CANopen](../../canopen.md#what-runs-today)).
+With the CANopen device selected, the node answers on its node-ID (default 1). It waits in pre-operational for
+an NMT start ([CANopen](../../canopen.md#what-runs-today)).

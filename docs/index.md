@@ -56,7 +56,7 @@ Status
 - A thin `app_main` and one orchestrator task with an ordered, table-driven boot ([architecture](architecture.md)).
 - A fixed set of tasks with known stacks and priorities ([threads](threads.md)).
 - A supervisor that checks HAL health every 5 s and never moves the motor on a timer ([safety](safety.md)).
-- An optional CANopenNode CiA 301 slave on the CAN port ([CANopen](canopen.md)).
+- An optional CANopen device on the CAN port: CANopenNode over the generated dictionary, tested in CI against a host build of the same node ([CANopen](canopen.md)).
 - One YAML object dictionary that generates the CANopenNode tables, the EDS, C++ and Python constants and the
   [object dictionary reference](od-reference.md).
 - Host-tested contracts for the CiA 402 state machine, fault policy, frame routing and parameter store
@@ -68,8 +68,8 @@ Status
   <img src="diagrams/firmware-tasks.svg"
     alt="Task diagram of the Vortex V1 firmware: the ESP-IDF main task runs app_main and then the supervisor
     loop; it starts the VortexSys orchestrator, which starts the LedDemo (WS2812 test) thread and,
-    optionally, the CANopen slave task; all of them use the Vortex HAL, which drives the TMC9660,
-    AS5047U, BNO08x, PCAL95555, the CAN transceiver and the WS2812 LED.">
+    optionally, the CANopen device task (co_svc, serving CoNode); all of them use the Vortex HAL, which
+    drives the TMC9660, AS5047U, BNO08x, PCAL95555, the CAN transceiver and the WS2812 LED.">
 </picture>
 <!-- /figure -->
 
@@ -91,7 +91,7 @@ Status
 
 - :material-lan: **[CANopen](canopen.md)**
 
-    The slave runtime, the object dictionary and the tools that read it.
+    The CANopen device, the object dictionary and the tools that read it.
 
 - :material-tune-variant: **[Configuration](configuration.md)**
 

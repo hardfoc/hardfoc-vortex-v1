@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vortex-canopen"
+version = "0.1.0"
+description = "Host tooling for the HardFOC Vortex V1 CANopen device"
+requires-python = ">=3.10"
+dependencies = ["python-can>=4.2", "canopen>=2.3"]
+
+[project.entry-points."can.interface"]
+vortex_pipe = "vortex_canopen.pipe_bus:PipeBus"
+
+[tool.setuptools]
+packages = ["vortex_canopen"]
+
+[tool.setuptools.package-data]
+vortex_canopen = ["data/*.eds"]

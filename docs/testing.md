@@ -50,14 +50,38 @@ odgen supports Python 3.10 and newer; CI uses 3.10.
 
 | Workflow | Jobs | Runs on |
 | --- | --- | --- |
-| `host.yml` (**CI • Host tests**) | `contracts-host`, `od-drift`, `CI gate` (green only when both are) | every pull request, push to `main` |
-| `build-and-analyze.yml` | ESP-IDF build in `release-v5.5`, Release and Debug, with size report and firmware artifacts; cppcheck on `main/`; CodeQL; actionlint | pull requests to `main`, push to `main` |
+| `host.yml` (**CI • Host tests**) | `contracts-host`, `od-drift`, `node-host`, `CI gate` (green only when all are) | every pull request, push to `main` |
+| `build-and-analyze.yml` | ESP-IDF build in `release-v5.5`, Release and Debug, plus a Release build with the CANopen device on (`ci/sdkconfig.canopen`), with size report and firmware artifacts; cppcheck on `main/`; CodeQL; actionlint | pull requests to `main`, push to `main` |
 | `docs.yml` (**Docs**) | Strict site build, link check, Lighthouse, screenshots; publish to GitHub Pages from `main` | pull requests to `main`, push to `main` |
+
+## The CANopen node on the host
+
+`host/node` builds `vortex_node_host`: the firmware's `CoNode`, `FrameRouter`, generated `OD.c` and CANopenNode,
+with hf-core's `LinuxSocketCanPort` (`--port vcan0`) or `PipePort` (`--port pipe:<path>`, a UNIX-socket hub
+carrying frame records). `tests/node` runs python-canopen against it
+([design §9.4](design/canopen-node.md#94-host-ci-same-node-simulated-hardware)):
+
+```bash
+git -C hal/hf-hal-vortex-v1 submodule update --init lib/core third_party/CANopenNode
+cmake -S host/node -B build/node-host -G Ninja && cmake --build build/node-host
+python3 -m pip install -r tests/node/requirements.txt
+python3 -m pytest tests/node          # vcan0 if present, else the pipe bus (VORTEX_BUS=vcan0|pipe)
+```
+
+| Suite | Checks |
+| --- | --- |
+| `test_nmt_hb.py` | boot-up, NMT states and addressing, heartbeat period (0x1017), 0x1F80, reset communication and node |
+| `test_sdo.py` | expedited 1–4 bytes, segmented, block transfer with CRC (and a corrupted CRC), abort codes, SDO server 2 kept off the CAN port |
+| `test_pdo.py` | mapping procedure and aborts, event timer, inhibit time, SYNC TPDO, RPDO into the OD, RPDO length and timeout EMCYs |
+| `test_lss.py` | fastscan, node-ID assignment and store across a restart, inquiries, bit-timing table, `--nvs` path validation |
+| `test_frame_record.py` | the Python frame-record codec against the golden bytes of hf-core's C++ codec |
+
+CI job `node-host` builds the binary with ASan and UBSan and runs the suites on the pipe bus, then again on
+`vcan0` when the runner can load `vcan`.
 
 ## On the bench
 
 Nothing runs on hardware in CI. The [CANopen node design](design/canopen-node.md#93-bench-test-plan-usb-can) has the
-USB-CAN bench plan, and [section 9.4](design/canopen-node.md#94-host-ci-same-node-simulated-hardware) the plan to run
-the same node against a simulated motor in host CI.
+USB-CAN bench plan.
 
 Next: [Design notes](design/index.md).

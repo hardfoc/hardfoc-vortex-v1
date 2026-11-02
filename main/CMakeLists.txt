@@ -19,7 +19,14 @@ set(MAIN_SRCS
     "apps/node/sub_threads/ws2812/WS2812TestThread.cpp"
 )
 if(CONFIG_VORTEX_APP_CAN_BOOT_CANOPEN_SLAVE)
-    list(APPEND MAIN_SRCS "apps/node/canopen/CanopenSlaveRuntime.cpp")
+    # CANopen device (design §10.2 step 6): CoNode over the generated OD,
+    # the frame router and the co_svc task. The host node binary
+    # (host/node) builds CoNode.cpp and FrameRouter.cpp too.
+    list(APPEND MAIN_SRCS
+        "apps/node/canopen/CanopenDevice.cpp"
+        "apps/node/canopen/CoNode.cpp"
+        "apps/node/canopen/FrameRouter.cpp"
+        "apps/node/canopen/CoSvcFreeRtos.cpp")
 endif()
 
 idf_component_register(
@@ -55,6 +62,7 @@ idf_component_register(
         "apps/node/sub_threads/ws2812"
         "apps/node/canopen"
         "utils"
+        ".."                       # contracts/ (header-only, shared with host tests)
 )
 
 target_compile_features(${COMPONENT_LIB} PRIVATE cxx_std_17)

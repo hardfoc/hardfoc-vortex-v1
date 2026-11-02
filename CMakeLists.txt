@@ -25,6 +25,12 @@ endif()
 # driver's standalone CMakeLists.txt as a component.
 list(APPEND EXTRA_COMPONENT_DIRS "${HF_HAL_VORTEX_DIR}")
 
+# CANopen device (CONFIG_HARDFOC_HAL_CANOPENNODE_SLAVE): the object dictionary
+# generated from od/vortex_od.yaml and the stack configuration. hf-core
+# compiles CANopenNode with these instead of the upstream example OD.
+set(HF_CORE_CANOPENNODE_OD_DIR "${CMAKE_CURRENT_LIST_DIR}/od/canopennode")
+set(HF_CORE_CANOPENNODE_CONFIG_DIR "${CMAKE_CURRENT_LIST_DIR}/main/apps/node/canopen/config")
+
 # HAL-owned project-level setup (component exclusions). Must come before
 # project.cmake, which resolves the component graph.
 include("${HF_HAL_VORTEX_DIR}/cmake/vortex_project_setup.cmake")

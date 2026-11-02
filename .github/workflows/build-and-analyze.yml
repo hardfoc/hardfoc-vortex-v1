@@ -27,7 +27,7 @@ jobs:
   # 1) BUILD & SIZE
   ########################################################################
   build:
-    name: Build ➜ ${{ matrix.idf_version }} · ${{ matrix.build_type }}
+    name: Build ➜ ${{ matrix.idf_version }} · ${{ matrix.build_type }} · ${{ matrix.config }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
@@ -35,6 +35,17 @@ jobs:
       matrix:
         idf_version: [release-v5.5]
         build_type: [Release, Debug]
+        config: [default]
+        idf_args: [""]
+        include:
+          # CANopen device on (CoNode, EspTwaiPort, CO_driver_hardfoc.c):
+          # sdkconfig plus ci/sdkconfig.canopen, in a separate sdkconfig file.
+          - idf_version: release-v5.5
+            build_type: Release
+            config: canopen
+            idf_args: >-
+              -D SDKCONFIG=build/sdkconfig.canopen
+              -D "SDKCONFIG_DEFAULTS=sdkconfig;ci/sdkconfig.canopen"
 
     steps:
       - uses: actions/checkout@v4
@@ -56,14 +67,14 @@ jobs:
           esp_idf_version: ${{ matrix.idf_version }}
           target: ${{ env.IDF_TARGET }}
           command: >-
-            idf.py -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} build &&
-            idf.py size-components > build/size.txt &&
-            idf.py size --format json2 > build/size.json
+            idf.py -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} ${{ matrix.idf_args }} build &&
+            idf.py ${{ matrix.idf_args }} size-components > build/size.txt &&
+            idf.py ${{ matrix.idf_args }} size --format json2 > build/size.json
 
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: fw-${{ matrix.idf_version }}-${{ matrix.build_type }}
+          name: fw-${{ matrix.idf_version }}-${{ matrix.build_type }}-${{ matrix.config }}
           retention-days: 14
           if-no-files-found: ignore
           path: |

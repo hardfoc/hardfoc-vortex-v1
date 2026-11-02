@@ -14,7 +14,7 @@ sequenceDiagram
   activate O
   O->>H: [1/3] vortex_hal: EnsureInitialized()
   O->>O: [2/3] ws2812: start LedDemo
-  O->>O: [3/3] can_worker: none, or start canopen_slave
+  O->>O: [3/3] can_worker: none, or start the CANopen device (co_svc)
   O-->>M: IsSetupComplete(), BootSucceeded()
   deactivate O
   M->>M: RunVortexSupervisorLoop() (never returns)

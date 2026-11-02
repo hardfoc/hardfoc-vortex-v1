@@ -12,18 +12,16 @@ so every delay is a multiple of 10 ms.
 | ESP-IDF main | ESP-IDF | 3584 (`CONFIG_ESP_MAIN_TASK_STACK_SIZE`) | ESP-IDF default (1) | 100 ms supervisor tick | `main/app_main.cpp`, `main/apps/supervisor/VortexSupervisor.cpp` |
 | `VortexSys` | `app_main` | 16384, static | 5 | `Step()` every 100 ms | `main/apps/system/sub_threads/VortexSystemThread.h` |
 | `LedDemo` | boot step `ws2812` | 4096, static | 2 | `Step()` every 20 ms, next animation every 5 s | `main/apps/node/sub_threads/ws2812/WS2812TestThread.h` |
-| `canopen_slave` | boot step `can_worker`, only with the CANopenNode slave selected | 8192, heap | 5 | loop with `vTaskDelay(pdMS_TO_TICKS(1))` | `main/apps/node/canopen/CanopenSlaveRuntime.cpp` |
+| `co_svc` | boot step `can_worker`, only with the CANopen device selected | 6144, heap | 17 | woken by received frames; otherwise CANopenNode's timer-next, at least one tick | `main/apps/node/canopen/CoSvcFreeRtos.cpp` |
 
 What the HAL managers lock, and from which tasks they may be called, is on the
 [HAL threading page](https://hardfoc.github.io/hf-hal-vortex-v1/latest/architecture/threading/).
 
-!!! warning "The CANopen loop never sleeps"
-    At a 100 Hz tick, `pdMS_TO_TICKS(1)` is zero ticks, so `vTaskDelay()` in the `canopen_slave` loop only yields
-    to tasks of equal priority. Read from the code, not measured: with the CANopenNode slave selected, the
-    priority 5 loop keeps `LedDemo`, the main task and the idle task off the CPU whenever `VortexSys` is
-    blocked, and the task watchdog checks the idle task. The [CANopen node design](design/canopen-node.md#44-threads-priorities-and-timing-on-the-single-core-c6)
-    replaces this loop with a timer-driven schedule and `CONFIG_FREERTOS_HZ=1000`. The default build (CAN worker
-    **None**) does not start this task.
+!!! note "co_svc at a 100 Hz tick"
+    `co_svc` sleeps until a frame arrives or CANopenNode's next deadline, and never less than one tick. At the
+    current 100 Hz tick a 1 ms deadline therefore becomes 10 ms; event timers and heartbeats below that are
+    coarser than configured. The [CANopen node design](design/canopen-node.md#44-threads-priorities-and-timing-on-the-single-core-c6)
+    moves to `CONFIG_FREERTOS_HZ=1000`. The default build (CAN worker **None**) does not start this task.
 
 ## Who talks to whom
 
@@ -32,7 +30,8 @@ What the HAL managers lock, and from which tasks they may be called, is on the
 | `app_main` | `VortexSys` | `IsSetupComplete()` and `BootSucceeded()`, polled by `TestLogicWithTimeout()` for up to 120 s |
 | Supervisor | `LedDemo` | `IsThreadRunning()`, logged every 10 s |
 | Supervisor, `LedDemo` | status LED | `LedManager`: both write it (see [Troubleshooting](troubleshooting.md#the-status-led-flickers-between-patterns)) |
-| `canopen_slave` | CAN bus | `BaseCan::SendMessage()` (20 ms timeout) and `ReceiveMessage()` (no wait); the only RX consumer |
+| TWAI RX interrupt | `co_svc` | the CO driver's lock-free RX ring and a task notification |
+| `co_svc` | CAN bus | `EspCan::TrySendMessage()` (never blocks); the only RX consumer |
 
 ## Watchdog
 

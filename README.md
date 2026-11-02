@@ -15,8 +15,8 @@ through the Vortex HAL, a health supervisor, and a CANopen device built from one
   <img src="docs/diagrams/firmware-tasks.svg"
     alt="Task diagram of the Vortex V1 firmware: the ESP-IDF main task runs app_main and then the supervisor
     loop; it starts the VortexSys orchestrator, which starts the LedDemo (WS2812 test) thread and,
-    optionally, the CANopen slave task; all of them use the Vortex HAL, which drives the TMC9660,
-    AS5047U, BNO08x, PCAL95555, the CAN transceiver and the WS2812 LED.">
+    optionally, the CANopen device task (co_svc, serving CoNode); all of them use the Vortex HAL, which
+    drives the TMC9660, AS5047U, BNO08x, PCAL95555, the CAN transceiver and the WS2812 LED.">
 </picture>
 <!-- /figure -->
 

@@ -8,8 +8,8 @@ How the firmware is put together: the layers, the boot table, the system state m
   <img src="diagrams/firmware-tasks.svg"
     alt="Task diagram of the Vortex V1 firmware: the ESP-IDF main task runs app_main and then the supervisor
     loop; it starts the VortexSys orchestrator, which starts the LedDemo (WS2812 test) thread and,
-    optionally, the CANopen slave task; all of them use the Vortex HAL, which drives the TMC9660,
-    AS5047U, BNO08x, PCAL95555, the CAN transceiver and the WS2812 LED.">
+    optionally, the CANopen device task (co_svc, serving CoNode); all of them use the Vortex HAL, which
+    drives the TMC9660, AS5047U, BNO08x, PCAL95555, the CAN transceiver and the WS2812 LED.">
 </picture>
 <!-- /figure -->
 
@@ -36,7 +36,7 @@ lives in the HAL.
 | `main/apps/system/api/VortexSystemStateMachine.{h,cpp}` | `vortex_app::VortexSystemStateMachine`: the coarse lifecycle state |
 | `main/apps/supervisor/VortexSupervisor.{h,cpp}` | `RunVortexSupervisorLoop()`: health checks, status logs, HAL demos |
 | `main/apps/node/sub_threads/ws2812/` | `WS2812TestThread` (task `LedDemo`) |
-| `main/apps/node/canopen/CanopenSlaveRuntime.{hpp,cpp}` | The CANopenNode slave task, built only when menuconfig selects it |
+| `main/apps/node/canopen/` | The CANopen device: `CoNode`, `FrameRouter`, the `co_svc` task and `CanopenDevice`, built only when menuconfig selects it ([CANopen](canopen.md)) |
 | `main/utils/vortex_demos.h` | Declarations of older demo functions; nothing implements them |
 | `main/Kconfig.projbuild` | The **HardFOC Vortex main (app)** menu |
 
@@ -50,7 +50,7 @@ in reverse order, and makes `Setup()` return false.
 | --- | --- | --- | --- |
 | `vortex_hal` | no | `Vortex::GetInstance().EnsureInitialized()` | `Vortex::Shutdown()` |
 | `ws2812` | yes | `EnsureInitialized()` and `Start()` of the `LedDemo` thread | `Stop()` |
-| `can_worker` | yes | With menuconfig **None**: nothing. With **CANopenNode slave**: `StartCanopenSlaveRuntime()` on `CommChannelsManager::GetCanOpenBus()` | `StopCanopenSlaveRuntime()` |
+| `can_worker` | yes | With menuconfig **None**: nothing. With **CANopen device**: `StartCanopenDevice()` on `CommChannelsManager::GetEspCan()` | `StopCanopenDevice()` |
 
 Adding a step means adding a `Setup*` / `Teardown*` pair and a row to `kInitSequence[]` in
 `VortexSystemThread.cpp`. [Boot and updates](boot-and-ota.md) follows the whole sequence from reset.
@@ -60,15 +60,14 @@ Adding a step means adding a `Setup*` / `Teardown*` pair and a row to `kInitSequ
 `VortexSystemStateMachine` holds one atomic `VortexSystemState` and the reason of the last change.
 `TryTransition()` stores the new state without a guard table; the states mark milestones for logs.
 
-```mermaid
-stateDiagram-v2
-  [*] --> Boot: Setup() starts
-  Boot --> HalInit: vortex_hal step
-  HalInit --> ThreadsUp: can_worker step
-  ThreadsUp --> Ready: every step done
-  HalInit --> Fault: non-recoverable step failed
-  Ready --> Fault: Cleanup()
-```
+| From | To | When |
+| --- | --- | --- |
+| (start) | `Boot` | `Setup()` starts |
+| `Boot` | `HalInit` | the `vortex_hal` step |
+| `HalInit` | `ThreadsUp` | the `can_worker` step |
+| `ThreadsUp` | `Ready` | every step done |
+| `HalInit` | `Fault` | a non-recoverable step failed |
+| `Ready` | `Fault` | `Cleanup()` |
 
 ## Supervisor loop
 

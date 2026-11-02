@@ -1,7 +1,8 @@
 #include "VortexSystemThread.h"
 
 #if CONFIG_VORTEX_APP_CAN_BOOT_CANOPEN_SLAVE
-#include "CanopenSlaveRuntime.hpp"
+#include "CanopenDevice.hpp"
+#include "mcu/esp32/EspCan.h"
 #endif
 #include "Vortex.h"
 #include "managers/CommChannelsManager.h"
@@ -68,12 +69,12 @@ bool SetupCanWorker(VortexSystemStateMachine& sm) noexcept {
     return false;
   }
 #if CONFIG_VORTEX_APP_CAN_BOOT_CANOPEN_SLAVE
-  if (!StartCanopenSlaveRuntime(*pcan)) {
-    Logger::GetInstance().Warn(TAG, "CANopenNode slave runtime failed to start");
+  auto& comms = CommChannelsManager::GetInstance();
+  EspCan* twai = comms.GetEspCan();
+  if (twai == nullptr || !StartCanopenDevice(*twai, comms.GetCanBitRate())) {
+    Logger::GetInstance().Warn(TAG, "CANopen device failed to start");
     return false;
   }
-  Logger::GetInstance().Info(TAG, "CANopenNode slave running (node %u)",
-                             static_cast<unsigned>(CONFIG_VORTEX_CANOPEN_NODE_ID));
   return true;
 #else
   (void)pcan;
@@ -84,7 +85,7 @@ bool SetupCanWorker(VortexSystemStateMachine& sm) noexcept {
 
 bool TeardownCanWorker(VortexSystemStateMachine&) noexcept {
 #if CONFIG_VORTEX_APP_CAN_BOOT_CANOPEN_SLAVE
-  StopCanopenSlaveRuntime();
+  StopCanopenDevice();
 #endif
   return true;
 }

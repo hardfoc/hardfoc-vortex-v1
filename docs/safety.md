@@ -15,7 +15,7 @@ What stops the drive from doing harm today, what is only designed, and the rules
 | Health check every 5 s | `Vortex::PerformHealthCheck()` | Failure sets the status LED to `STATUS_WARN` and logs `System health check failed!` |
 | Task watchdog | `CONFIG_ESP_TASK_WDT_TIMEOUT_S=5`, idle task checked | A starved idle task resets the chip |
 | TMC9660 protection | the TMC9660 itself | The chip has its own overcurrent, supply and temperature protection; nothing in `main/` changes its settings |
-| CAN off by default | menuconfig CAN worker **None** | The firmware neither sends nor answers on CAN unless you select the CANopenNode slave |
+| CAN off by default | menuconfig CAN worker **None** | The firmware neither sends nor answers on CAN unless you select the CANopen device |
 
 ## Rules already written and tested
 
@@ -45,7 +45,7 @@ The [CANopen node design](design/canopen-node.md) describes the rest; the sectio
 
 - Use a current-limited supply and an unloaded motor until the configuration is proven.
 - Know the node ID before you send NMT or SDO frames: a valid sequence enables a CiA 402 drive.
-- With the CANopenNode slave selected, read the [threads warning](threads.md#tasks) first.
+- With the CANopen device selected, read the [threads note](threads.md#tasks) on the 100 Hz tick first.
 - The bench documents linked from the [HAL hardware page](https://hardfoc.github.io/hf-hal-vortex-v1/latest/hardware/)
   cover the first spin of a motor on the TMC9660.
 
