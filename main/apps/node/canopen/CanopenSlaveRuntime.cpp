@@ -54,8 +54,51 @@ extern "C" int co_tx_bridge(uint32_t std_id, uint8_t dlc, const uint8_t* data, v
   if (data != nullptr) {
     (void)std::memcpy(m.data, data, dlc);
   }
-  const hf_can_err_t e = bus->SendMessage(m, 20U);
+  // CO_CANsend() calls this inside its CO_LOCK_CAN_SEND critical section, so it
+  // must not block: queue the frame or fail at once. On failure CO_CANsend()
+  // marks the buffer bufferFull and retry_pending_tx() re-sends it.
+  const hf_can_err_t e = bus->TrySendMessage(m);
   return (e == hf_can_err_t::CAN_SUCCESS) ? 0 : -1;
+}
+
+/**
+ * Re-send CANopenNode TX buffers that CO_CANsend() could not queue.
+ *
+ * CANopenNode leaves a refused frame in its buffer with bufferFull set and
+ * expects the driver to send it once the controller has room (reference
+ * drivers do this from the TX-done interrupt). The Vortex driver
+ * (hf-core CO_driver_vortex.c) has no TX-done hook and an empty
+ * CO_CANmodule_process(), so without this a single full TX queue would leave
+ * that buffer (heartbeat, EMCY, a TPDO, an SDO reply) stuck for good:
+ * every later CO_CANsend() on it returns CO_ERROR_TX_OVERFLOW.
+ *
+ * Buffers are tried in index order, as the reference drivers do, and the scan
+ * stops at the first refusal because the queue is still full.
+ */
+void retry_pending_tx(CO_CANmodule_t* cm) {
+  if (cm == nullptr || cm->CANtxCount == 0U || g_bus == nullptr) {
+    return;
+  }
+  CO_LOCK_CAN_SEND(cm);
+  for (uint16_t i = 0U; i < cm->txSize && cm->CANtxCount != 0U; i++) {
+    CO_CANtx_t* const buffer = &cm->txArray[i];
+    if (!buffer->bufferFull) {
+      continue;
+    }
+    const auto std_id = static_cast<uint32_t>(buffer->ident & 0x07FFU);
+    auto dlc = static_cast<uint8_t>((buffer->ident >> 11U) & 0x0FU);
+    if (dlc > 8U) {
+      dlc = 8U;
+    }
+    if (co_tx_bridge(std_id, dlc, buffer->data, g_bus) != 0) {
+      break;
+    }
+    buffer->bufferFull = false;
+    cm->CANtxCount = static_cast<uint16_t>(cm->CANtxCount - 1U);
+    cm->firstCANtxMessage = false;
+    cm->bufferInhibitFlag = buffer->syncFlag;
+  }
+  CO_UNLOCK_CAN_SEND(cm);
 }
 
 static void canopen_task(void* /*arg*/) {
@@ -77,6 +120,8 @@ static void canopen_task(void* /*arg*/) {
         hf_co_driver_process_rx(g_co->CANmodule, id, m.dlc, m.data);
       }
     }
+
+    retry_pending_tx(g_co->CANmodule);
 
 #if ((CO_CONFIG_SYNC) & CO_CONFIG_SYNC_ENABLE) != 0
     const bool_t syncWas = CO_process_SYNC(g_co, dt_us, nullptr);

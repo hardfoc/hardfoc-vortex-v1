@@ -15,9 +15,17 @@ leaves the CAN bus alone.
 ## Known limitations
 
 The current runtime is a bring-up shim. It compiles the upstream example
-object dictionary, does not persist parameters, and depends on
-`BaseCan::ReceiveMessage`, which the ESP32 CAN wrapper does not implement
-yet, so it cannot receive frames on hardware.
+object dictionary and does not persist parameters.
+
+It polls `BaseCan::ReceiveMessage`, which the ESP32 CAN wrapper serves from
+its RX ring since BaseCan v2. Nothing else may register a receive callback on
+the same bus: with a callback registered, the wrapper's default `rx_mode`
+delivers frames to the callback only.
+
+Frames go out through `BaseCan::TrySendMessage`, because CANopenNode calls the
+TX hook inside its CAN-send critical section. A frame the TX queue refuses
+stays in its CANopenNode buffer (`bufferFull`) and the slave task re-sends it
+on its next pass.
 
 ## Where this is going
 
