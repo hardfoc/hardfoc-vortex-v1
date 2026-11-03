@@ -30,8 +30,8 @@ How a frame travels:
 !!! note "Not here yet"
     Parameter storage (0x1010 / 0x1011) and the NVS LSS record are the next step of the
     [design](design/canopen-node.md#102-ordered-prs). After that come the CiA 402 axis and `drive_rt`, then the
-    fault funnel. Until then, a reset forgets an LSS-assigned node-ID, and the node runs with a 100 Hz tick
-    ([Threads](threads.md#tasks)).
+    fault funnel. Until then, a reset forgets an LSS-assigned node-ID. The node runs on the 1 kHz tick
+    ([Threads](threads.md#tasks)), which still awaits its bench soak.
 
 ### Start sequence
 

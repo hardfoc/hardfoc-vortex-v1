@@ -50,7 +50,7 @@ in reverse order, and makes `Setup()` return false.
 | --- | --- | --- | --- |
 | `vortex_hal` | no | `Vortex::GetInstance().EnsureInitialized()` | `Vortex::Shutdown()` |
 | `ws2812` | yes | `EnsureInitialized()` and `Start()` of the `LedDemo` thread | `Stop()` |
-| `can_worker` | yes | With menuconfig **None**: nothing. With **CANopen device**: `StartCanopenDevice()` on `CommChannelsManager::GetEspCan()` | `StopCanopenDevice()` |
+| `can_worker` | yes | With menuconfig **None**: nothing. With **CANopen device**: `StartCanopenDevice()` on `vortex::bsp::esp32c6::CanController()` | `StopCanopenDevice()` |
 
 Adding a step means adding a `Setup*` / `Teardown*` pair and a row to `kInitSequence[]` in
 `VortexSystemThread.cpp`. [Boot and updates](boot-and-ota.md) follows the whole sequence from reset.

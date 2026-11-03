@@ -45,7 +45,8 @@ The [CANopen node design](design/canopen-node.md) describes the rest; the sectio
 
 - Use a current-limited supply and an unloaded motor until the configuration is proven.
 - Know the node ID before you send NMT or SDO frames: a valid sequence enables a CiA 402 drive.
-- With the CANopen device selected, read the [threads note](threads.md#tasks) on the 100 Hz tick first.
+- With the CANopen device selected, read the [threads note](threads.md#tasks) on the 1 kHz tick first: its bench
+  soak (no task-watchdog trip) has not been run yet.
 - The bench documents linked from the [HAL hardware page](https://hardfoc.github.io/hf-hal-vortex-v1/latest/hardware/)
   cover the first spin of a motor on the TMC9660.
 

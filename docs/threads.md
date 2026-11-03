@@ -2,8 +2,8 @@
 
 Every FreeRTOS task the firmware creates, with its stack, priority, period and owner, read from the sources.
 
-The ESP32-C6 runs FreeRTOS on one core (`CONFIG_FREERTOS_UNICORE=y`) with a 100 Hz tick (`CONFIG_FREERTOS_HZ=100`),
-so every delay is a multiple of 10 ms.
+The ESP32-C6 runs FreeRTOS on one core (`CONFIG_FREERTOS_UNICORE=y`) with a 1 kHz tick (`CONFIG_FREERTOS_HZ=1000`),
+so every delay is a multiple of 1 ms.
 
 ## Tasks
 
@@ -17,11 +17,12 @@ so every delay is a multiple of 10 ms.
 What the HAL managers lock, and from which tasks they may be called, is on the
 [HAL threading page](https://hardfoc.github.io/hf-hal-vortex-v1/latest/architecture/threading/).
 
-!!! note "co_svc at a 100 Hz tick"
-    `co_svc` sleeps until a frame arrives or CANopenNode's next deadline, and never less than one tick. At the
-    current 100 Hz tick a 1 ms deadline therefore becomes 10 ms; event timers and heartbeats below that are
-    coarser than configured. The [CANopen node design](design/canopen-node.md#44-threads-priorities-and-timing-on-the-single-core-c6)
-    moves to `CONFIG_FREERTOS_HZ=1000`. The default build (CAN worker **None**) does not start this task.
+!!! note "co_svc and the 1 kHz tick"
+    `co_svc` sleeps until a frame arrives or CANopenNode's next deadline, and never less than one tick (1 ms), so
+    CANopenNode timers resolve to 1 ms, as the
+    [CANopen node design](design/canopen-node.md#44-threads-priorities-and-timing-on-the-single-core-c6) requires.
+    The 1 kHz tick still needs the bench soak (no task-watchdog trip with the CANopen device selected). The default
+    build (CAN worker **None**) does not start this task.
 
 ## Who talks to whom
 
