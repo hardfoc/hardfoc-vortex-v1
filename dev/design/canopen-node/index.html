@@ -105,6 +105,47 @@
   <meta property="og:description" content="Firmware for the HardFOC Vortex V1 motor controller (ESP32-C6, TMC9660): boot orchestration, supervisor, the CANopen device and its object dictionary.">
   <meta property="og:url" content="https://hardfoc.github.io/hardfoc-vortex-v1/latest/design/canopen-node/">
   <meta name="twitter:card" content="summary">
+  <script>
+(function () {
+  if (typeof mermaid != "undefined" && !(mermaid instanceof Element)) return;
+  var SRC = "https://unpkg.com/mermaid@11/dist/mermaid.min.js", config = {}, real, loading, waiting = [];
+  var stub = {
+    initialize: function (c) { config = c || {}; if (real) real.initialize(config); },
+    render: function (id, text) {
+      var el = null, pres = document.querySelectorAll("pre.mermaid:not([data-hf-mermaid])");
+      for (var i = 0; i < pres.length && !el; i++) if (pres[i].textContent === text) el = pres[i];
+      if (el) el.setAttribute("data-hf-mermaid", "");
+      return near(el).then(load).then(function (m) { return m.render(id, text); });
+    }
+  };
+  function load() {
+    return loading || (loading = new Promise(function (resolve, reject) {
+      var s = document.createElement("script");
+      s.src = SRC;
+      s.onload = function () {
+        real = window.mermaid;
+        window.mermaid = stub;
+        real.initialize(config);
+        resolve(real);
+      };
+      s.onerror = function () { loading = null; reject(new Error("Mermaid did not load")); };
+      document.head.appendChild(s);
+    }));
+  }
+  function near(el) {
+    if (real || !el || !("IntersectionObserver" in window)) return Promise.resolve();
+    return new Promise(function (resolve) {
+      var io = new IntersectionObserver(function (entries) {
+        if (entries.some(function (e) { return e.isIntersecting; })) { io.disconnect(); resolve(); }
+      }, { rootMargin: "100% 0px" });
+      io.observe(el);
+      waiting.push(function () { io.disconnect(); resolve(); });
+    });
+  }
+  window.addEventListener("beforeprint", function () { waiting.splice(0).forEach(function (go) { go(); }); });
+  window.mermaid = stub;
+})();
+</script>
 
   </head>
   
@@ -2276,7 +2317,7 @@
 <td><code>EspCan.cpp:262-266</code></td>
 </tr>
 <tr>
-<td>Tick rate</td>
+<td>Tick rate (fixed: now <code>CONFIG_FREERTOS_HZ=1000</code>, step 1 of §10.2)</td>
 <td><code>CONFIG_FREERTOS_HZ=100</code>, so <code>pdMS_TO_TICKS(1) == 0</code>. The slave task loop (<code>vTaskDelay(pdMS_TO_TICKS(1))</code>, priority 5) is a busy yield that starves the idle task. <code>CONFIG_ESP_TASK_WDT_CHECK_IDLE_TASK_CPU0=y</code> with a 5 s timeout, so a TWDT trip is likely. (Inferred from config, not bench-verified.)</td>
 <td><code>hardfoc-vortex-v1/sdkconfig:1077,1120</code>; <code>CanopenSlaveRuntime.cpp:98</code></td>
 </tr>
@@ -2490,7 +2531,7 @@
 <p>SDO server 2 (0x1201) is predefined with <em>virtual</em> COB-IDs (client→server 0x6C0+id, server→client 0x5C0+id, documented as tunnel-only). These IDs never appear on the physical bus. For human or script access, the CiA 309-3 gateway (<code>CO_gateway_ascii.c</code>) uses CANopenNode's local SDO client (<code>CO_CONFIG_SDO_CLI_LOCAL</code>, <code>301/CO_config.h:401</code>), so ASCII commands for the node's own ID access the OD without bus traffic. Together this gives identical SDO semantics everywhere: the same abort codes, the same OD extension handlers and the same access checks.</p>
 <p>The C++ side has no 8-byte assumptions. <code>CO_CANrxMsg_t</code> and <code>CO_CANtx_t</code> in the new <code>CO_driver_target.h</code> carry <code>data[CO_CAN_MAX_LEN]</code>, which is 8 on classic builds and 64 on FD builds. The router rejects any frame longer than the destination port's <code>Caps().max_len</code>, and the PDO layer checks mapped length against <code>CO_PDO_MAX_SIZE</code> (§8).</p>
 <h3 id="44-threads-priorities-and-timing-on-the-single-core-c6">4.4 Threads, priorities and timing on the single-core C6<a class="headerlink" href="#44-threads-priorities-and-timing-on-the-single-core-c6" title="Permanent link">&para;</a></h3>
-<p>Platform facts: ESP32-C6, one HP RISC-V core at 160 MHz (<code>CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ=160</code>). ESP-IDF built-in priorities are Wi-Fi 23, esp_timer 22, event loop 20 and lwIP 18. Espressif reserves 24 for very short timing-critical bursts and advises that network-using tasks run below 18 (<a href="https://docs.espressif.com/projects/esp-idf/en/stable/esp32c6/api-guides/performance/speed.html">IDF speed guide</a>). Prerequisite: set <code>CONFIG_FREERTOS_HZ=1000</code>.</p>
+<p>Platform facts: ESP32-C6, one HP RISC-V core at 160 MHz (<code>CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ=160</code>). ESP-IDF built-in priorities are Wi-Fi 23, esp_timer 22, event loop 20 and lwIP 18. Espressif reserves 24 for very short timing-critical bursts and advises that network-using tasks run below 18 (<a href="https://docs.espressif.com/projects/esp-idf/en/stable/esp32c6/api-guides/performance/speed.html">IDF speed guide</a>). Prerequisite: <code>CONFIG_FREERTOS_HZ=1000</code> (set; bench soak still needed).</p>
 <table>
 <thead>
 <tr>
@@ -4476,9 +4517,9 @@
 <tbody>
 <tr>
 <td>1</td>
-<td>Fix build + tick (hardfoc-vortex-v1)</td>
+<td>Fix build + tick (hardfoc-vortex-v1) — <strong>done</strong> except the bench soak</td>
 <td>Remove the <code>VortexCanHostThread</code> include/members, <code>FREERTOS_HZ=1000</code>, CI builds every Kconfig CAN choice</td>
-<td>CI green for all configs. No TWDT trip with the slave option in a 10 min soak (bench)</td>
+<td>CI green for all configs (done). No TWDT trip with the slave option in a 10 min soak (bench, <strong>still needed</strong>)</td>
 </tr>
 <tr>
 <td>2</td>

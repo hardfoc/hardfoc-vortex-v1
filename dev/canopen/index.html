@@ -105,6 +105,47 @@
   <meta property="og:description" content="Firmware for the HardFOC Vortex V1 motor controller (ESP32-C6, TMC9660): boot orchestration, supervisor, the CANopen device and its object dictionary.">
   <meta property="og:url" content="https://hardfoc.github.io/hardfoc-vortex-v1/latest/canopen/">
   <meta name="twitter:card" content="summary">
+  <script>
+(function () {
+  if (typeof mermaid != "undefined" && !(mermaid instanceof Element)) return;
+  var SRC = "https://unpkg.com/mermaid@11/dist/mermaid.min.js", config = {}, real, loading, waiting = [];
+  var stub = {
+    initialize: function (c) { config = c || {}; if (real) real.initialize(config); },
+    render: function (id, text) {
+      var el = null, pres = document.querySelectorAll("pre.mermaid:not([data-hf-mermaid])");
+      for (var i = 0; i < pres.length && !el; i++) if (pres[i].textContent === text) el = pres[i];
+      if (el) el.setAttribute("data-hf-mermaid", "");
+      return near(el).then(load).then(function (m) { return m.render(id, text); });
+    }
+  };
+  function load() {
+    return loading || (loading = new Promise(function (resolve, reject) {
+      var s = document.createElement("script");
+      s.src = SRC;
+      s.onload = function () {
+        real = window.mermaid;
+        window.mermaid = stub;
+        real.initialize(config);
+        resolve(real);
+      };
+      s.onerror = function () { loading = null; reject(new Error("Mermaid did not load")); };
+      document.head.appendChild(s);
+    }));
+  }
+  function near(el) {
+    if (real || !el || !("IntersectionObserver" in window)) return Promise.resolve();
+    return new Promise(function (resolve) {
+      var io = new IntersectionObserver(function (entries) {
+        if (entries.some(function (e) { return e.isIntersecting; })) { io.disconnect(); resolve(); }
+      }, { rootMargin: "100% 0px" });
+      io.observe(el);
+      waiting.push(function () { io.disconnect(); resolve(); });
+    });
+  }
+  window.addEventListener("beforeprint", function () { waiting.splice(0).forEach(function (go) { go(); }); });
+  window.mermaid = stub;
+})();
+</script>
 
   </head>
   
@@ -1079,7 +1120,7 @@ master for other drives. The <a href="../design/canopen-node/">CANopen node desi
 <tr>
 <td>CANopen device</td>
 <td><code>CoNode</code>, served by the <code>co_svc</code> task; started by boot step <code>can_worker</code> when menuconfig selects <strong>CANopen device</strong></td>
-<td><a href="https://github.com/hardfoc/hardfoc-vortex-v1/blob/165556ad7e6176b4ad5a99ba510875d87f3ddfa0/main/apps/node/canopen/CoNode.cpp"><code>main/apps/node/canopen/CoNode.cpp</code></a>, <a href="https://github.com/hardfoc/hardfoc-vortex-v1/blob/165556ad7e6176b4ad5a99ba510875d87f3ddfa0/main/apps/node/canopen/CanopenDevice.cpp"><code>CanopenDevice.cpp</code></a></td>
+<td><a href="https://github.com/hardfoc/hardfoc-vortex-v1/blob/38b97c85088e21ae5cf9cd8525a648ad939bb7af/main/apps/node/canopen/CoNode.cpp"><code>main/apps/node/canopen/CoNode.cpp</code></a>, <a href="https://github.com/hardfoc/hardfoc-vortex-v1/blob/38b97c85088e21ae5cf9cd8525a648ad939bb7af/main/apps/node/canopen/CanopenDevice.cpp"><code>CanopenDevice.cpp</code></a></td>
 </tr>
 <tr>
 <td>Object dictionary in the build</td>
@@ -1089,7 +1130,7 @@ master for other drives. The <a href="../design/canopen-node/">CANopen node desi
 <tr>
 <td>Stack configuration</td>
 <td>SDO block transfer with CRC, configurable EMCY, LSS fastscan, timer-next</td>
-<td><a href="https://github.com/hardfoc/hardfoc-vortex-v1/blob/165556ad7e6176b4ad5a99ba510875d87f3ddfa0/main/apps/node/canopen/config/hf_co_app_config.h"><code>main/apps/node/canopen/config/hf_co_app_config.h</code></a></td>
+<td><a href="https://github.com/hardfoc/hardfoc-vortex-v1/blob/38b97c85088e21ae5cf9cd8525a648ad939bb7af/main/apps/node/canopen/config/hf_co_app_config.h"><code>main/apps/node/canopen/config/hf_co_app_config.h</code></a></td>
 </tr>
 <tr>
 <td>Host node</td>
@@ -1112,8 +1153,8 @@ master for other drives. The <a href="../design/canopen-node/">CANopen node desi
 <p class="admonition-title">Not here yet</p>
 <p>Parameter storage (0x1010 / 0x1011) and the NVS LSS record are the next step of the
 <a href="../design/canopen-node/#102-ordered-prs">design</a>. After that come the CiA 402 axis and <code>drive_rt</code>, then the
-fault funnel. Until then, a reset forgets an LSS-assigned node-ID, and the node runs with a 100 Hz tick
-(<a href="../threads/#tasks">Threads</a>).</p>
+fault funnel. Until then, a reset forgets an LSS-assigned node-ID. The node runs on the 1 kHz tick
+(<a href="../threads/#tasks">Threads</a>), which still awaits its bench soak.</p>
 </div>
 <h3 id="start-sequence">Start sequence<a class="headerlink" href="#start-sequence" title="Permanent link">&para;</a></h3>
 <p><code>StartCanopenDevice(EspCan&amp;, bit rate)</code> creates the port, the node and the service task. <code>CoNode::Start()</code> then
@@ -1162,7 +1203,7 @@ runs, in order:</p>
 <p><code>CO_ERROR_NODE_ID_UNCONFIGURED_LSS</code> is accepted in steps 4 and 5, so an unconfigured node (ID 255) can be set up with
 LSS. NMT reset communication repeats steps 2 to 6. NMT reset node restarts the chip.</p>
 <h2 id="the-object-dictionary">The object dictionary<a class="headerlink" href="#the-object-dictionary" title="Permanent link">&para;</a></h2>
-<p>One YAML file, <a href="https://github.com/hardfoc/hardfoc-vortex-v1/blob/165556ad7e6176b4ad5a99ba510875d87f3ddfa0/od/vortex_od.yaml"><code>od/vortex_od.yaml</code></a>, is the source of every artefact. <code>tools/odgen</code> writes
+<p>One YAML file, <a href="https://github.com/hardfoc/hardfoc-vortex-v1/blob/38b97c85088e21ae5cf9cd8525a648ad939bb7af/od/vortex_od.yaml"><code>od/vortex_od.yaml</code></a>, is the source of every artefact. <code>tools/odgen</code> writes
 them and CI fails when one is stale:</p>
 <table>
 <thead>

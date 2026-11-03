@@ -105,6 +105,47 @@
   <meta property="og:description" content="Firmware for the HardFOC Vortex V1 motor controller (ESP32-C6, TMC9660): boot orchestration, supervisor, the CANopen device and its object dictionary.">
   <meta property="og:url" content="https://hardfoc.github.io/hardfoc-vortex-v1/latest/architecture/">
   <meta name="twitter:card" content="summary">
+  <script>
+(function () {
+  if (typeof mermaid != "undefined" && !(mermaid instanceof Element)) return;
+  var SRC = "https://unpkg.com/mermaid@11/dist/mermaid.min.js", config = {}, real, loading, waiting = [];
+  var stub = {
+    initialize: function (c) { config = c || {}; if (real) real.initialize(config); },
+    render: function (id, text) {
+      var el = null, pres = document.querySelectorAll("pre.mermaid:not([data-hf-mermaid])");
+      for (var i = 0; i < pres.length && !el; i++) if (pres[i].textContent === text) el = pres[i];
+      if (el) el.setAttribute("data-hf-mermaid", "");
+      return near(el).then(load).then(function (m) { return m.render(id, text); });
+    }
+  };
+  function load() {
+    return loading || (loading = new Promise(function (resolve, reject) {
+      var s = document.createElement("script");
+      s.src = SRC;
+      s.onload = function () {
+        real = window.mermaid;
+        window.mermaid = stub;
+        real.initialize(config);
+        resolve(real);
+      };
+      s.onerror = function () { loading = null; reject(new Error("Mermaid did not load")); };
+      document.head.appendChild(s);
+    }));
+  }
+  function near(el) {
+    if (real || !el || !("IntersectionObserver" in window)) return Promise.resolve();
+    return new Promise(function (resolve) {
+      var io = new IntersectionObserver(function (entries) {
+        if (entries.some(function (e) { return e.isIntersecting; })) { io.disconnect(); resolve(); }
+      }, { rootMargin: "100% 0px" });
+      io.observe(el);
+      waiting.push(function () { io.disconnect(); resolve(); });
+    });
+  }
+  window.addEventListener("beforeprint", function () { waiting.splice(0).forEach(function (go) { go(); }); });
+  window.mermaid = stub;
+})();
+</script>
 
   </head>
   
@@ -1086,14 +1127,14 @@
 <h1 id="architecture">Architecture<a class="headerlink" href="#architecture" title="Permanent link">&para;</a></h1>
 <p>How the firmware is put together: the layers, the boot table, the system state machine and the supervisor loop.</p>
 <figure class="hf-figure">
-<img src="../diagrams/firmware-tasks.svg#only-light" alt="Task diagram of the Vortex V1 firmware: the ESP-IDF main task runs app_main and then the supervisor loop; it starts the VortexSys orchestrator, which starts the LedDemo (WS2812 test) thread and, optionally, the CANopen device task (co_svc, serving CoNode); all of them use the Vortex HAL, which drives the TMC9660, AS5047U, BNO08x, PCAL95555, the CAN transceiver and the WS2812 LED." width="1200" loading="lazy"><img src="../diagrams/firmware-tasks.dark.svg#only-dark" alt="Task diagram of the Vortex V1 firmware: the ESP-IDF main task runs app_main and then the supervisor loop; it starts the VortexSys orchestrator, which starts the LedDemo (WS2812 test) thread and, optionally, the CANopen device task (co_svc, serving CoNode); all of them use the Vortex HAL, which drives the TMC9660, AS5047U, BNO08x, PCAL95555, the CAN transceiver and the WS2812 LED." width="1200" loading="lazy">
+<img src="../diagrams/firmware-tasks.svg#only-light" alt="Task diagram of the Vortex V1 firmware: the ESP-IDF main task runs app_main and then the supervisor loop; it starts the VortexSys orchestrator, which starts the LedDemo (WS2812 test) thread and, optionally, the CANopen device task (co_svc, serving CoNode); all of them use the Vortex HAL, which drives the TMC9660, AS5047U, BNO08x, PCAL95555, the CAN transceiver and the WS2812 LED." width="1200" height="762"><img src="../diagrams/firmware-tasks.dark.svg#only-dark" alt="Task diagram of the Vortex V1 firmware: the ESP-IDF main task runs app_main and then the supervisor loop; it starts the VortexSys orchestrator, which starts the LedDemo (WS2812 test) thread and, optionally, the CANopen device task (co_svc, serving CoNode); all of them use the Vortex HAL, which drives the TMC9660, AS5047U, BNO08x, PCAL95555, the CAN transceiver and the WS2812 LED." width="1200" height="762">
 <figcaption>Four tasks over one HAL</figcaption>
 </figure>
 
 <details class="hf-figure-desc">
 <summary>Figure description and sources</summary>
 <p>From top to bottom. The ESP-IDF main task runs app_main, which starts the VortexSys orchestrator task and waits for its boot table, then becomes the supervisor loop. VortexSys brings up the HAL, starts the LedDemo thread (WS2812TestThread) and, when menuconfig selects the CANopen device, the co_svc task that serves CoNode (CANopenNode over the generated object dictionary, on the TWAI port). Every task reaches the hardware through the Vortex HAL singleton, which owns the managers, the hf-core handlers and the chip drivers. Stack sizes and priorities are the constants in the sources listed below.</p>
-<p>Drawn from: <a href="https://github.com/hardfoc/hardfoc-vortex-v1/blob/165556ad7e6176b4ad5a99ba510875d87f3ddfa0/main/app_main.cpp"><code>main/app_main.cpp</code></a>; <a href="https://github.com/hardfoc/hardfoc-vortex-v1/blob/165556ad7e6176b4ad5a99ba510875d87f3ddfa0/main/apps/system/sub_threads/VortexSystemThread.h"><code>main/apps/system/sub_threads/VortexSystemThread.h</code></a>; <a href="https://github.com/hardfoc/hardfoc-vortex-v1/blob/165556ad7e6176b4ad5a99ba510875d87f3ddfa0/main/apps/system/sub_threads/VortexSystemThread.cpp"><code>main/apps/system/sub_threads/VortexSystemThread.cpp</code></a>; <a href="https://github.com/hardfoc/hardfoc-vortex-v1/blob/165556ad7e6176b4ad5a99ba510875d87f3ddfa0/main/apps/node/sub_threads/ws2812/WS2812TestThread.h"><code>main/apps/node/sub_threads/ws2812/WS2812TestThread.h</code></a>; <a href="https://github.com/hardfoc/hardfoc-vortex-v1/blob/165556ad7e6176b4ad5a99ba510875d87f3ddfa0/main/apps/node/canopen/CanopenDevice.cpp"><code>main/apps/node/canopen/CanopenDevice.cpp</code></a>; <a href="https://github.com/hardfoc/hardfoc-vortex-v1/blob/165556ad7e6176b4ad5a99ba510875d87f3ddfa0/main/apps/node/canopen/CoSvcFreeRtos.cpp"><code>main/apps/node/canopen/CoSvcFreeRtos.cpp</code></a>; <a href="https://github.com/hardfoc/hardfoc-vortex-v1/blob/165556ad7e6176b4ad5a99ba510875d87f3ddfa0/main/apps/supervisor/VortexSupervisor.cpp"><code>main/apps/supervisor/VortexSupervisor.cpp</code></a>; figure module <a href="https://github.com/hardfoc/hardfoc-vortex-v1/blob/165556ad7e6176b4ad5a99ba510875d87f3ddfa0/docs/diagrams/figures/firmware-tasks.py"><code>docs/diagrams/figures/firmware-tasks.py</code></a>.</p>
+<p>Drawn from: <a href="https://github.com/hardfoc/hardfoc-vortex-v1/blob/38b97c85088e21ae5cf9cd8525a648ad939bb7af/main/app_main.cpp"><code>main/app_main.cpp</code></a>; <a href="https://github.com/hardfoc/hardfoc-vortex-v1/blob/38b97c85088e21ae5cf9cd8525a648ad939bb7af/main/apps/system/sub_threads/VortexSystemThread.h"><code>main/apps/system/sub_threads/VortexSystemThread.h</code></a>; <a href="https://github.com/hardfoc/hardfoc-vortex-v1/blob/38b97c85088e21ae5cf9cd8525a648ad939bb7af/main/apps/system/sub_threads/VortexSystemThread.cpp"><code>main/apps/system/sub_threads/VortexSystemThread.cpp</code></a>; <a href="https://github.com/hardfoc/hardfoc-vortex-v1/blob/38b97c85088e21ae5cf9cd8525a648ad939bb7af/main/apps/node/sub_threads/ws2812/WS2812TestThread.h"><code>main/apps/node/sub_threads/ws2812/WS2812TestThread.h</code></a>; <a href="https://github.com/hardfoc/hardfoc-vortex-v1/blob/38b97c85088e21ae5cf9cd8525a648ad939bb7af/main/apps/node/canopen/CanopenDevice.cpp"><code>main/apps/node/canopen/CanopenDevice.cpp</code></a>; <a href="https://github.com/hardfoc/hardfoc-vortex-v1/blob/38b97c85088e21ae5cf9cd8525a648ad939bb7af/main/apps/node/canopen/CoSvcFreeRtos.cpp"><code>main/apps/node/canopen/CoSvcFreeRtos.cpp</code></a>; <a href="https://github.com/hardfoc/hardfoc-vortex-v1/blob/38b97c85088e21ae5cf9cd8525a648ad939bb7af/main/apps/supervisor/VortexSupervisor.cpp"><code>main/apps/supervisor/VortexSupervisor.cpp</code></a>; figure module <a href="https://github.com/hardfoc/hardfoc-vortex-v1/blob/38b97c85088e21ae5cf9cd8525a648ad939bb7af/docs/diagrams/figures/firmware-tasks.py"><code>docs/diagrams/figures/firmware-tasks.py</code></a>.</p>
 </details>
 <h2 id="layers">Layers<a class="headerlink" href="#layers" title="Permanent link">&para;</a></h2>
 <table>
@@ -1107,17 +1148,17 @@
 <tbody>
 <tr>
 <td>Application</td>
-<td><a href="https://github.com/hardfoc/hardfoc-vortex-v1/tree/165556ad7e6176b4ad5a99ba510875d87f3ddfa0/main"><code>main/</code></a></td>
+<td><a href="https://github.com/hardfoc/hardfoc-vortex-v1/tree/38b97c85088e21ae5cf9cd8525a648ad939bb7af/main"><code>main/</code></a></td>
 <td><code>app_main</code>, the orchestrator, the supervisor, worker threads</td>
 </tr>
 <tr>
 <td>Contracts</td>
-<td><a href="https://github.com/hardfoc/hardfoc-vortex-v1/tree/165556ad7e6176b4ad5a99ba510875d87f3ddfa0/contracts"><code>contracts/</code></a></td>
+<td><a href="https://github.com/hardfoc/hardfoc-vortex-v1/tree/38b97c85088e21ae5cf9cd8525a648ad939bb7af/contracts"><code>contracts/</code></a></td>
 <td>Header-only rules (CiA 402, fault policy, routing, store codec, OD ids); no RTOS, no HAL; host-tested, not yet linked into the firmware</td>
 </tr>
 <tr>
 <td>Object dictionary</td>
-<td><a href="https://github.com/hardfoc/hardfoc-vortex-v1/tree/165556ad7e6176b4ad5a99ba510875d87f3ddfa0/od"><code>od/</code></a></td>
+<td><a href="https://github.com/hardfoc/hardfoc-vortex-v1/tree/38b97c85088e21ae5cf9cd8525a648ad939bb7af/od"><code>od/</code></a></td>
 <td><code>vortex_od.yaml</code> and everything <code>tools/odgen</code> generates from it</td>
 </tr>
 <tr>
@@ -1207,7 +1248,7 @@ in reverse order, and makes <code>Setup()</code> return false.</p>
 <tr>
 <td><code>can_worker</code></td>
 <td>yes</td>
-<td>With menuconfig <strong>None</strong>: nothing. With <strong>CANopen device</strong>: <code>StartCanopenDevice()</code> on <code>CommChannelsManager::GetEspCan()</code></td>
+<td>With menuconfig <strong>None</strong>: nothing. With <strong>CANopen device</strong>: <code>StartCanopenDevice()</code> on <code>vortex::bsp::esp32c6::CanController()</code></td>
 <td><code>StopCanopenDevice()</code></td>
 </tr>
 </tbody>
