@@ -1120,7 +1120,7 @@ master for other drives. The <a href="../design/canopen-node/">CANopen node desi
 <tr>
 <td>CANopen device</td>
 <td><code>CoNode</code>, served by the <code>co_svc</code> task; started by boot step <code>can_worker</code> when menuconfig selects <strong>CANopen device</strong></td>
-<td><a href="https://github.com/hardfoc/hardfoc-vortex-v1/blob/9c9dc627972e11a75ec2caf567127b3b5a2147c0/main/apps/node/canopen/CoNode.cpp"><code>main/apps/node/canopen/CoNode.cpp</code></a>, <a href="https://github.com/hardfoc/hardfoc-vortex-v1/blob/9c9dc627972e11a75ec2caf567127b3b5a2147c0/main/apps/node/canopen/CanopenDevice.cpp"><code>CanopenDevice.cpp</code></a></td>
+<td><a href="https://github.com/hardfoc/hardfoc-vortex-v1/blob/b4b849ad60abc5b3f710a2c741e14debba39c047/main/apps/node/canopen/CoNode.cpp"><code>main/apps/node/canopen/CoNode.cpp</code></a>, <a href="https://github.com/hardfoc/hardfoc-vortex-v1/blob/b4b849ad60abc5b3f710a2c741e14debba39c047/main/apps/node/canopen/CanopenDevice.cpp"><code>CanopenDevice.cpp</code></a></td>
 </tr>
 <tr>
 <td>Object dictionary in the build</td>
@@ -1130,7 +1130,7 @@ master for other drives. The <a href="../design/canopen-node/">CANopen node desi
 <tr>
 <td>Stack configuration</td>
 <td>SDO block transfer with CRC, configurable EMCY, LSS fastscan, timer-next</td>
-<td><a href="https://github.com/hardfoc/hardfoc-vortex-v1/blob/9c9dc627972e11a75ec2caf567127b3b5a2147c0/main/apps/node/canopen/config/hf_co_app_config.h"><code>main/apps/node/canopen/config/hf_co_app_config.h</code></a></td>
+<td><a href="https://github.com/hardfoc/hardfoc-vortex-v1/blob/b4b849ad60abc5b3f710a2c741e14debba39c047/main/apps/node/canopen/config/hf_co_app_config.h"><code>main/apps/node/canopen/config/hf_co_app_config.h</code></a></td>
 </tr>
 <tr>
 <td>Host node</td>
@@ -1203,7 +1203,7 @@ runs, in order:</p>
 <p><code>CO_ERROR_NODE_ID_UNCONFIGURED_LSS</code> is accepted in steps 4 and 5, so an unconfigured node (ID 255) can be set up with
 LSS. NMT reset communication repeats steps 2 to 6. NMT reset node restarts the chip.</p>
 <h2 id="the-object-dictionary">The object dictionary<a class="headerlink" href="#the-object-dictionary" title="Permanent link">&para;</a></h2>
-<p>One YAML file, <a href="https://github.com/hardfoc/hardfoc-vortex-v1/blob/9c9dc627972e11a75ec2caf567127b3b5a2147c0/od/vortex_od.yaml"><code>od/vortex_od.yaml</code></a>, is the source of every artefact. <code>tools/odgen</code> writes
+<p>One YAML file, <a href="https://github.com/hardfoc/hardfoc-vortex-v1/blob/b4b849ad60abc5b3f710a2c741e14debba39c047/od/vortex_od.yaml"><code>od/vortex_od.yaml</code></a>, is the source of every artefact. <code>tools/odgen</code> writes
 them and CI fails when one is stale:</p>
 <table>
 <thead>
